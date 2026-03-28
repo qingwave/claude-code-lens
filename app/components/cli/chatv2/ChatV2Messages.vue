@@ -80,7 +80,10 @@ function handleOpenFile(filePath: string) {
               :class="idx === 0 ? 'rounded-2xl rounded-tr-md' : 'rounded-2xl rounded-r-md'"
               style="background: var(--accent); color: white;"
             >
-              <div class="text-[13px] whitespace-pre-wrap break-words overflow-wrap-anywhere max-w-full">{{ msg.content }}</div>
+              <div v-if="msg.images && msg.images.length > 0" class="flex flex-wrap gap-2 mb-2">
+                <img v-for="(img, i) in msg.images" :key="i" :src="img" class="max-w-[200px] max-h-[200px] rounded-lg object-contain bg-white/10" />
+              </div>
+              <div v-if="msg.content" class="text-[13px] whitespace-pre-wrap break-words overflow-wrap-anywhere max-w-full">{{ msg.content }}</div>
             </div>
             <!-- Single timestamp for the group -->
             <div class="text-[10px] px-1" style="color: var(--text-tertiary);">

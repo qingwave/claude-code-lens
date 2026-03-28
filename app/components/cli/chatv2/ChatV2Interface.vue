@@ -58,9 +58,7 @@ const viewMode = ref<'live' | 'history'>('live')
 // Track if we're continuing a history session (showing history + new messages)
 const isContinuingHistory = ref(false)
 
-// Track dismissed state for info bars
-const isDismissingContinuePrompt = ref(false)
-const isDismissingContinuingBar = ref(false)
+
 
 // Local loading state with minimum duration for smooth UX
 const isLoadingHistoryWithDelay = ref(false)
@@ -85,10 +83,10 @@ const permissionModeOptions: { value: PermissionMode; label: string; description
 const selectedPermissionMode = ref<PermissionMode>('default')
 
 // Model selector
-const modelOptions: { value: string; label: string }[] = [
-  { value: 'opus', label: 'Opus' },
-  { value: 'sonnet', label: 'Sonnet' },
-  { value: 'haiku', label: 'Haiku' },
+const modelOptions: { value: string; label: string; description: string }[] = [
+  { value: 'opus', label: 'Opus', description: 'Most capable, best for complex tasks' },
+  { value: 'sonnet', label: 'Sonnet', description: 'Balanced speed and intelligence' },
+  { value: 'haiku', label: 'Haiku', description: 'Fastest, great for simple tasks' },
 ]
 
 const selectedModel = ref<string>('sonnet')
@@ -200,11 +198,6 @@ function handleNewChat() {
   sessionStore.setActiveSession(null)
 }
 
-// Dismiss both info bars when either one is closed
-function dismissHistoryBars() {
-  isDismissingContinuePrompt.value = true
-  isDismissingContinuingBar.value = true
-}
 
 // Auto-scroll on new messages (when in live mode or continuing history)
 watch([displayMessages, streamingText], () => {
@@ -332,8 +325,8 @@ async function selectSession(sessionId: string | null) {
 }
 
 // Send message (works in both live and history mode)
-async function handleSendMessage() {
-  if (!inputText.value.trim() || isStreaming.value) return
+async function handleSendMessage(images: string[] = []) {
+  if ((!inputText.value.trim() && images.length === 0) || isStreaming.value) return
 
   // If in history mode, start continuing the session
   if (viewMode.value === 'history' && !isContinuingHistory.value) {
@@ -347,6 +340,7 @@ async function handleSendMessage() {
       permissionMode: selectedPermissionMode.value,
       model: selectedModel.value,
       thinkingEnabled: thinkingEnabled.value,
+      images,
     })
 
     if (success) {
@@ -364,6 +358,7 @@ async function handleSendMessage() {
     permissionMode: selectedPermissionMode.value,
     model: selectedModel.value,
     thinkingEnabled: thinkingEnabled.value,
+    images,
   })
 
   if (success) {
@@ -491,22 +486,16 @@ function handleOpenFile(filePath: string) {
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-          <!-- Model Selector -->
-          <div class="relative">
-            <select
-              v-model="selectedModel"
-              class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all appearance-none pr-6 cursor-pointer"
-              style="background: var(--surface-raised); color: var(--text-secondary); border: 1px solid var(--border-subtle);"
-            >
-              <option value="opus">Opus</option>
-              <option value="sonnet">Sonnet</option>
-              <option value="haiku">Haiku</option>
-            </select>
-            <UIcon name="i-lucide-chevron-down" class="size-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" style="color: var(--text-tertiary);" />
-          </div>
+          <!-- Model Selector (only when viewing a specific chat session) -->
+          <ChatV2ModelSelector
+            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && currentSessionId)"
+            v-model="selectedModel"
+            :options="modelOptions"
+          />
 
-          <!-- Thinking Mode Toggle -->
+          <!-- Thinking Mode Toggle (only when viewing a specific chat session) -->
           <button
+            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && currentSessionId)"
             class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all"
             :style="{
               background: thinkingEnabled ? 'rgba(139, 92, 246, 0.1)' : 'var(--surface-raised)',
@@ -611,61 +600,7 @@ function handleOpenFile(filePath: string) {
 
       <!-- Input -->
       <div class="shrink-0 border-t relative" style="border-color: var(--border-subtle);">
-        <!-- History mode context indicator (floating, hidden when input is focused) -->
-        <Transition name="slide-fade">
-          <div
-            v-if="viewMode === 'history' && !isContinuingHistory && !isInputFocused && !isDismissingContinuePrompt"
-            class="absolute bottom-full left-0 right-0 px-3 py-1.5 flex items-center justify-between z-10"
-            style="background: var(--surface-raised); border-top: 1px solid var(--border-subtle);"
-          >
-            <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-history" class="size-3" style="color: var(--accent);" />
-              <span class="text-[10px]" style="color: var(--text-secondary);">
-                Continue this conversation or start fresh
-              </span>
-            </div>
-            <div class="flex items-center gap-1 shrink-0">
-              <button
-                class="px-2 py-0.5 rounded text-[10px] font-medium hover-bg transition-all"
-                style="background: var(--surface); color: var(--text-tertiary);"
-                @click="handleNewChat"
-              >
-                <UIcon name="i-lucide-plus" class="size-3 inline-block mr-0.5" />
-                New Chat
-              </button>
-              <button
-                class="p-1 rounded hover-bg transition-all"
-                style="color: var(--text-tertiary);"
-                title="Dismiss"
-                @click="dismissHistoryBars"
-              >
-                <UIcon name="i-lucide-x" class="size-3" />
-              </button>
-            </div>
-          </div>
-        </Transition>
 
-        <!-- Continuing history indicator (floating) -->
-        <div
-          v-if="isContinuingHistory && !isDismissingContinuingBar"
-          class="absolute bottom-full left-0 right-0 px-3 py-1 flex items-center justify-between z-10"
-          style="background: rgba(229, 169, 62, 0.08); border-top: 1px solid var(--border-subtle);"
-        >
-          <div class="flex items-center gap-2">
-            <UIcon name="i-lucide-git-branch" class="size-3" style="color: var(--accent);" />
-            <span class="text-[10px]" style="color: var(--accent);">
-              Continuing from history
-            </span>
-          </div>
-          <button
-            class="p-1 rounded hover-bg transition-all"
-            style="color: var(--accent);"
-            title="Dismiss"
-            @click="dismissHistoryBars"
-          >
-            <UIcon name="i-lucide-x" class="size-3" />
-          </button>
-        </div>
 
         <!-- Chat Input - Works in both modes -->
         <!-- No longer requires pre-created session - SDK will create session on first message -->
@@ -684,16 +619,3 @@ function handleOpenFile(filePath: string) {
     </div>
   </div>
 </template>
-
-<style scoped>
-.slide-fade-enter-active,
-.slide-fade-leave-active {
-  transition: all 0.2s ease;
-}
-
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-</style>
