@@ -36,6 +36,21 @@ const groupedItems = computed(() => {
   }, {} as Record<string, typeof availableItems.value>)
 })
 
+const collapsedCategories = ref<Set<string>>(new Set())
+
+function initCollapsed() {
+  collapsedCategories.value = new Set(Object.keys(groupedItems.value))
+}
+
+function toggleCategory(cat: string) {
+  if (collapsedCategories.value.has(cat)) {
+    collapsedCategories.value.delete(cat)
+  } else {
+    collapsedCategories.value.add(cat)
+  }
+  collapsedCategories.value = new Set(collapsedCategories.value)
+}
+
 const allSelected = computed(() =>
   availableItems.value.length > 0 && selectedItems.value.size === availableItems.value.length
 )
@@ -49,6 +64,7 @@ async function loadItems() {
     const items = props.type === 'skills' ? skills : agents
     availableItems.value = items
     selectedItems.value = new Set(items.filter(i => i.selected).map(i => i.slug))
+    initCollapsed()
   } catch {
     // Non-critical — show empty state
   } finally {
@@ -239,15 +255,23 @@ onMounted(loadItems)
       <!-- Grouped items -->
       <div v-else class="space-y-5">
         <div v-for="(items, category) in groupedItems" :key="category" class="space-y-2">
-          <!-- Category header -->
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] font-mono uppercase tracking-widest text-meta shrink-0">{{ category }}</span>
+          <!-- Category header (clickable to collapse) -->
+          <button
+            class="w-full flex items-center gap-2 group/cat"
+            @click="toggleCategory(String(category))"
+          >
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="size-3 shrink-0 text-meta transition-transform duration-150"
+              :class="{ 'rotate-90': !collapsedCategories.has(String(category)) }"
+            />
+            <span class="text-[10px] font-mono uppercase tracking-widest text-meta shrink-0 group-hover/cat:text-label transition-colors">{{ category }}</span>
             <div class="flex-1 h-px" style="background: var(--border-subtle);" />
             <span class="text-[10px] text-meta shrink-0">{{ items.length }}</span>
-          </div>
+          </button>
 
           <!-- Items grid -->
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+          <div v-if="!collapsedCategories.has(String(category))" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
             <div
               v-for="item in items"
               :key="item.slug"
