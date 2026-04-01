@@ -645,10 +645,20 @@ function handleOpenFile(filePath: string) {
     <div class="flex-1 flex flex-col min-h-0 min-w-0">
       <!-- Header - Fixed height for consistent alignment -->
       <div
-        class="shrink-0 flex items-center justify-between px-3 md:px-4 h-14 border-b relative z-20"
+        class="shrink-0 border-b relative z-20"
         style="border-color: var(--border-subtle); background: var(--surface-base);"
       >
-        <div class="flex items-center gap-2 min-w-0 flex-1">
+        <div class="flex items-center justify-between px-3 md:px-4 h-14">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+          <!-- Hamburger - mobile only -->
+          <button
+            v-if="isMobileScreen"
+            class="shrink-0 p-1.5 rounded-lg mr-0.5"
+            style="color: var(--text-secondary);"
+            @click="mobileSidebarOpen = true"
+          >
+            <UIcon name="i-lucide-menu" class="size-5" />
+          </button>
           <!-- History Mode - Session Info -->
           <template v-if="viewMode === 'history'">
             <div class="flex flex-col justify-center min-w-0 py-1.5">
@@ -714,7 +724,7 @@ function handleOpenFile(filePath: string) {
           </template>
         </div>
 
-        <div class="flex items-center gap-2 shrink-0">
+        <div class="hidden sm:flex items-center gap-2 shrink-0">
           <!-- Model Selector -->
           <ChatV2ModelSelector
             v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
@@ -731,9 +741,27 @@ function handleOpenFile(filePath: string) {
           />
 
           <!-- Session ID (only in live mode) -->
-          <span v-if="viewMode === 'live' && currentSessionId" class="text-[10px] font-mono" style="color: var(--text-tertiary);">
+          <span v-if="viewMode === 'live' && currentSessionId" class="hidden sm:inline text-[10px] font-mono" style="color: var(--text-tertiary);">
             {{ currentSessionId.slice(0, 8) }}
           </span>
+        </div>
+        </div>
+
+        <!-- Row 2: model + permission controls — mobile only -->
+        <div
+          v-if="isMobileScreen && ((viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat) || (viewMode === 'live' && currentSessionId))"
+          class="flex items-center gap-2 px-3 pb-2"
+        >
+          <ChatV2ModelSelector
+            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
+            v-model="selectedModel"
+            :options="MODEL_OPTIONS_CHAT"
+          />
+          <ChatV2PermissionModeSelector
+            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && currentSessionId)"
+            v-model="selectedPermissionMode"
+            :options="permissionModeOptions"
+          />
         </div>
       </div>
 
