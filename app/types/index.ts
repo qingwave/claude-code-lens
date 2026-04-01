@@ -15,6 +15,7 @@ export interface AgentFrontmatter {
 export interface Agent {
   slug: string
   filename: string
+  directory: string
   frontmatter: AgentFrontmatter
   body: string
   hasMemory: boolean
@@ -65,6 +66,7 @@ export interface Relationship {
 export interface AgentPayload {
   frontmatter: AgentFrontmatter
   body: string
+  directory?: string
 }
 
 export interface CommandPayload {
@@ -139,6 +141,7 @@ export interface ScannedAgent {
   slug: string
   name: string
   description: string
+  category: string | null
   filePath: string
   conflict: boolean
 }
