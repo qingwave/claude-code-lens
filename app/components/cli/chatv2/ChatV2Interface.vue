@@ -59,6 +59,36 @@ const showContextDetails = ref(false)
 const isCreatingSession = ref(false)
 const isInputFocused = ref(false)
 
+// Context details sidebar drag-to-resize
+const contextSidebarWidth = ref(400)
+const isDraggingContextSidebar = ref(false)
+const dragStartX = ref(0)
+const dragStartWidth = ref(0)
+
+function onContextSidebarDragStart(e: MouseEvent) {
+  if (isMobileScreen.value) return
+  isDraggingContextSidebar.value = true
+  dragStartX.value = e.clientX
+  dragStartWidth.value = contextSidebarWidth.value
+  document.body.classList.add('dragging-context-sidebar')
+  document.addEventListener('mousemove', onContextSidebarDragMove)
+  document.addEventListener('mouseup', onContextSidebarDragEnd)
+  e.preventDefault()
+}
+
+function onContextSidebarDragMove(e: MouseEvent) {
+  if (!isDraggingContextSidebar.value) return
+  const delta = dragStartX.value - e.clientX
+  contextSidebarWidth.value = Math.min(800, Math.max(240, dragStartWidth.value + delta))
+}
+
+function onContextSidebarDragEnd() {
+  isDraggingContextSidebar.value = false
+  document.body.classList.remove('dragging-context-sidebar')
+  document.removeEventListener('mousemove', onContextSidebarDragMove)
+  document.removeEventListener('mouseup', onContextSidebarDragEnd)
+}
+
 // Responsive sidebar width based on window size
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200)
 const isSmallScreen = computed(() => windowWidth.value < 1024)
@@ -75,6 +105,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', updateWidth)
+  document.removeEventListener('mousemove', onContextSidebarDragMove)
+  document.removeEventListener('mouseup', onContextSidebarDragEnd)
+  document.removeEventListener('mousemove', onLeftSidebarDragMove)
+  document.removeEventListener('mouseup', onLeftSidebarDragEnd)
 })
 
 watch(isMobileScreen, (isMobile) => {
@@ -84,12 +118,46 @@ watch(isMobileScreen, (isMobile) => {
   }
 })
 
-const sidebarWidth = computed(() => {
-  if (sidebarCollapsed.value) return '56px'
-  if (windowWidth.value < 1024) return '220px'
-  if (windowWidth.value < 1280) return '260px'
-  return '320px'
-})
+function getDefaultSidebarWidth() {
+  if (typeof window === 'undefined') return 320
+  if (window.innerWidth < 1024) return 220
+  if (window.innerWidth < 1280) return 260
+  return 320
+}
+const leftSidebarWidth = ref(getDefaultSidebarWidth())
+
+const sidebarWidth = computed(() =>
+  sidebarCollapsed.value ? '56px' : `${leftSidebarWidth.value}px`
+)
+
+// Left sidebar drag-to-resize
+const isDraggingLeftSidebar = ref(false)
+const leftDragStartX = ref(0)
+const leftDragStartWidth = ref(0)
+
+function onLeftSidebarDragStart(e: MouseEvent) {
+  if (isMobileScreen.value || sidebarCollapsed.value) return
+  isDraggingLeftSidebar.value = true
+  leftDragStartX.value = e.clientX
+  leftDragStartWidth.value = leftSidebarWidth.value
+  document.body.classList.add('dragging-left-sidebar')
+  document.addEventListener('mousemove', onLeftSidebarDragMove)
+  document.addEventListener('mouseup', onLeftSidebarDragEnd)
+  e.preventDefault()
+}
+
+function onLeftSidebarDragMove(e: MouseEvent) {
+  if (!isDraggingLeftSidebar.value) return
+  const delta = e.clientX - leftDragStartX.value
+  leftSidebarWidth.value = Math.min(480, Math.max(160, leftDragStartWidth.value + delta))
+}
+
+function onLeftSidebarDragEnd() {
+  isDraggingLeftSidebar.value = false
+  document.body.classList.remove('dragging-left-sidebar')
+  document.removeEventListener('mousemove', onLeftSidebarDragMove)
+  document.removeEventListener('mouseup', onLeftSidebarDragEnd)
+}
 
 // Track the working directory for the current session (defaults to prop)
 const localWorkingDir = ref(props.executionOptions.workingDir || '')
@@ -615,8 +683,9 @@ function handleOpenFile(filePath: string) {
     <!-- Left Sidebar - Claude Code History -->
     <div
       :class="[
-        'flex flex-col border-r transition-all duration-300',
-        isMobileScreen ? 'fixed inset-y-0 left-0 z-50' : 'shrink-0',
+        'flex flex-col border-r relative overflow-hidden',
+        isMobileScreen ? 'fixed inset-y-0 left-0 z-50 transition-transform duration-300' : 'shrink-0',
+        !isMobileScreen && !isDraggingLeftSidebar ? 'transition-[width] duration-300' : '',
       ]"
       :style="{
         width: isMobileScreen ? '280px' : sidebarWidth,
@@ -625,8 +694,16 @@ function handleOpenFile(filePath: string) {
           : undefined,
         borderColor: 'var(--border-subtle)',
         background: 'var(--surface-base)',
+        userSelect: isDraggingLeftSidebar ? 'none' : undefined,
       }"
     >
+      <!-- Drag handle on right edge -->
+      <div
+        v-if="!isMobileScreen && !sidebarCollapsed"
+        class="absolute right-0 inset-y-0 w-1 cursor-col-resize z-10"
+        :class="isDraggingLeftSidebar ? 'bg-accent/40' : 'hover:bg-accent/30'"
+        @mousedown="onLeftSidebarDragStart"
+      />
       <!-- Projects Sidebar -->
       <ChatV2ProjectsSidebar
         :collapsed="sidebarCollapsed"
@@ -643,13 +720,13 @@ function handleOpenFile(filePath: string) {
     </div>
 
     <!-- Right Panel - Chat Interface -->
-    <div class="flex-1 flex flex-col min-h-0 min-w-0">
+    <div class="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
       <!-- Header - Fixed height for consistent alignment -->
       <div
         class="shrink-0 border-b relative z-20"
         style="border-color: var(--border-subtle); background: var(--surface-base);"
       >
-        <div class="flex items-center justify-between px-3 md:px-4 h-14">
+        <div class="flex items-center justify-between px-3 md:px-4 min-h-[3.5rem] py-2">
           <div class="flex items-center gap-2 min-w-0 flex-1">
           <!-- Hamburger - mobile only -->
           <button
@@ -662,15 +739,15 @@ function handleOpenFile(filePath: string) {
           </button>
           <!-- History Mode - Session Info -->
           <template v-if="viewMode === 'history'">
-            <div class="flex flex-col justify-center min-w-0 py-1.5">
+            <div class="flex flex-col justify-center min-w-0 py-0.5">
               <!-- Session Name -->
-              <span class="text-[12px] md:text-[13px] font-medium truncate max-w-[300px] md:max-w-[500px] leading-tight" style="color: var(--text-primary);">
+              <span class="text-[12px] md:text-[13px] font-medium break-words max-w-full leading-tight" style="color: var(--text-primary);">
                 {{ currentSessionSummary || 'Session' }}
               </span>
               <!-- Folder Name -->
               <span
                 v-if="currentProjectDisplayName"
-                class="text-[9px] md:text-[10px] font-mono truncate leading-tight mt-0.5"
+                class="text-[9px] md:text-[10px] font-mono break-all leading-tight mt-0.5"
                 style="color: var(--text-tertiary);"
               >
                 {{ currentProjectDisplayName }}
@@ -680,7 +757,7 @@ function handleOpenFile(filePath: string) {
 
           <!-- Live Mode Indicators -->
           <template v-else>
-            <div class="flex items-center gap-1.5 md:gap-2">
+            <div class="flex flex-wrap items-center gap-1.5 md:gap-2">
               <!-- Connection Status -->
               <div
                 v-if="isConnected"
@@ -714,12 +791,12 @@ function handleOpenFile(filePath: string) {
               <!-- Project/Folder indicator in live mode -->
               <div
                 v-if="localWorkingDir"
-                class="flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-1 rounded text-[10px] md:text-[11px] font-medium max-w-[120px] md:max-w-[200px]"
+                class="flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-1 rounded text-[10px] md:text-[11px] font-medium min-w-0"
                 style="background: var(--surface-raised); color: var(--text-secondary);"
                 :title="localWorkingDir"
               >
                 <UIcon :name="currentProjectDisplayName ? 'i-lucide-folder-root' : 'i-lucide-folder'" class="size-3 shrink-0" />
-                <span class="truncate">{{ currentProjectDisplayName || localWorkingDir.split('/').filter(Boolean).pop() || localWorkingDir }}</span>
+                <span class="break-all">{{ currentProjectDisplayName || localWorkingDir.split('/').filter(Boolean).pop() || localWorkingDir }}</span>
               </div>
             </div>
           </template>
@@ -784,8 +861,8 @@ function handleOpenFile(filePath: string) {
           }"
           @scroll="handleMessagesScroll"
         >
-          <!-- Centered content column -->
-          <div class="max-w-[800px] mx-auto w-full px-4 py-4 space-y-4 min-h-full">
+          <!-- Content column - grows with available space -->
+          <div class="w-full max-w-7xl mx-auto px-4 py-4 space-y-4 min-h-full">
               <!-- Loading state for creating new session -->
             <div v-if="isCreatingSession" class="flex items-center justify-center h-full">
               <div class="text-center">
@@ -987,11 +1064,23 @@ function handleOpenFile(filePath: string) {
 
       <!-- Sidebar Panel -->
       <Transition name="slide">
-        <div 
+        <div
           v-if="showContextDetails"
-          class="absolute inset-y-0 right-0 flex flex-col shadow-2xl transition-all duration-300 pointer-events-auto border-l"
-          style="background: var(--surface-overlay); border-color: var(--border-subtle); width: min(400px, 90vw);"
+          class="absolute inset-y-0 right-0 flex flex-col shadow-2xl pointer-events-auto border-l"
+          :style="{
+            background: 'var(--surface-overlay)',
+            borderColor: 'var(--border-subtle)',
+            width: isMobileScreen ? '90vw' : `${contextSidebarWidth}px`,
+            userSelect: isDraggingContextSidebar ? 'none' : undefined,
+          }"
         >
+          <!-- Drag handle -->
+          <div
+            v-if="!isMobileScreen"
+            class="absolute left-0 inset-y-0 w-1 cursor-col-resize z-10 group"
+            :class="isDraggingContextSidebar ? 'bg-accent/40' : 'hover:bg-accent/30'"
+            @mousedown="onContextSidebarDragStart"
+          />
           <!-- Sidebar Header -->
           <div class="shrink-0 px-4 h-14 border-b flex items-center justify-between" style="border-color: var(--border-subtle);">
             <div class="flex items-center gap-2">
@@ -1018,6 +1107,11 @@ function handleOpenFile(filePath: string) {
 </template>
 
 <style scoped>
+:global(body.dragging-context-sidebar) {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
 .slide-enter-active, .slide-leave-active {
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
 }

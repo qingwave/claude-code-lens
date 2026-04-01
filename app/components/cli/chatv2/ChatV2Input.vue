@@ -170,8 +170,8 @@ onMounted(() => {
     </div>
 
     <!-- Bottom hints -->
-    <div class="flex items-center justify-between mt-1.5 px-1">
-      <div class="flex items-center gap-3 text-[10px]" style="color: var(--text-tertiary);">
+    <div class="flex flex-wrap items-center justify-between mt-1.5 px-1 gap-2">
+      <div class="flex flex-wrap items-center gap-3 text-[10px]" style="color: var(--text-tertiary);">
         <span class="flex items-center gap-1">
           <kbd class="px-1 py-0.5 rounded text-[9px]" style="background: var(--surface-raised);">Enter</kbd>
           send
