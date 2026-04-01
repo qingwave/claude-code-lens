@@ -2,11 +2,12 @@ import { writeFile, rename, mkdir, stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { resolveClaudePath } from '../../utils/claudeDir'
 import { serializeFrontmatter } from '../../utils/frontmatter'
+import { decodeAgentSlug, encodeAgentSlug, resolveAgentFilePath } from '../../utils/agentUtils'
 import type { AgentPayload } from '~/types'
 
 export default defineEventHandler(async (event) => {
   const slug = getRouterParam(event, 'slug')!
-  const filePath = resolveClaudePath('agents', `${slug}.md`)
+  const filePath = resolveAgentFilePath(slug)
 
   if (!existsSync(filePath)) {
     throw createError({ statusCode: 404, message: `Agent not found: ${slug}` })
@@ -21,19 +22,31 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 409, message: 'This file was modified externally. Reload to see the latest version.' })
     }
   }
-  const newSlug = payload.frontmatter.name
-  const newFilePath = resolveClaudePath('agents', `${newSlug}.md`)
+
+  const newDirectory = payload.directory ?? decodeAgentSlug(slug).directory
+  const newName = payload.frontmatter.name
+  const newSlug = encodeAgentSlug(newDirectory, newName)
+  const newFilePath = resolveAgentFilePath(newSlug)
+
+  // Ensure target directory exists
+  if (newDirectory) {
+    const targetDir = resolveClaudePath('agents', ...newDirectory.split('/'))
+    if (!existsSync(targetDir)) {
+      await mkdir(targetDir, { recursive: true })
+    }
+  }
 
   const content = serializeFrontmatter(payload.frontmatter, payload.body)
   await writeFile(newFilePath, content, 'utf-8')
 
-  // Handle rename
+  // Remove old file if path changed
+  if (filePath !== newFilePath) {
+    const { unlink } = await import('node:fs/promises')
+    await unlink(filePath)
+  }
+
+  // Rename memory directory if slug changed
   if (slug !== newSlug) {
-    if (filePath !== newFilePath) {
-      const { unlink } = await import('node:fs/promises')
-      await unlink(filePath)
-    }
-    // Rename memory directory if it exists
     const oldMemDir = resolveClaudePath('agent-memory', slug)
     const newMemDir = resolveClaudePath('agent-memory', newSlug)
     if (existsSync(oldMemDir) && !existsSync(newMemDir)) {
@@ -41,16 +54,15 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Create or clean up memory directory
+  // Create or remove memory directory based on memory setting
   const memoryDir = resolveClaudePath('agent-memory', newSlug)
   const isPersistent = payload.frontmatter.memory && ['user', 'project', 'local'].includes(payload.frontmatter.memory)
-  
+
   if (isPersistent) {
     if (!existsSync(memoryDir)) {
       await mkdir(memoryDir, { recursive: true })
     }
   } else {
-    // Remove memory directory when memory is disabled or unset
     if (existsSync(memoryDir)) {
       const { rm } = await import('node:fs/promises')
       await rm(memoryDir, { recursive: true })
@@ -61,7 +73,8 @@ export default defineEventHandler(async (event) => {
 
   return {
     slug: newSlug,
-    filename: `${newSlug}.md`,
+    filename: `${newName}.md`,
+    directory: newDirectory,
     frontmatter: payload.frontmatter,
     body: payload.body,
     hasMemory: existsSync(resolveClaudePath('agent-memory', newSlug)),

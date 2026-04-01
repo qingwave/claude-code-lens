@@ -2,20 +2,26 @@ import { writeFile, mkdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { resolveClaudePath } from '../../utils/claudeDir'
 import { serializeFrontmatter } from '../../utils/frontmatter'
+import { encodeAgentSlug, resolveAgentFilePath } from '../../utils/agentUtils'
 import type { AgentPayload } from '~/types'
 
 export default defineEventHandler(async (event) => {
   const payload = await readBody<AgentPayload>(event)
-  const slug = payload.frontmatter.name
-  const filePath = resolveClaudePath('agents', `${slug}.md`)
+  const directory = payload.directory ?? ''
+  const name = payload.frontmatter.name
+  const slug = encodeAgentSlug(directory, name)
+  const filePath = resolveAgentFilePath(slug)
 
   if (existsSync(filePath)) {
     throw createError({ statusCode: 409, message: `Agent already exists: ${slug}` })
   }
 
-  const agentsDir = resolveClaudePath('agents')
-  if (!existsSync(agentsDir)) {
-    await mkdir(agentsDir, { recursive: true })
+  // Ensure target directory exists
+  const targetDir = directory
+    ? resolveClaudePath('agents', ...directory.split('/'))
+    : resolveClaudePath('agents')
+  if (!existsSync(targetDir)) {
+    await mkdir(targetDir, { recursive: true })
   }
 
   const content = serializeFrontmatter(payload.frontmatter, payload.body)
@@ -31,7 +37,8 @@ export default defineEventHandler(async (event) => {
 
   return {
     slug,
-    filename: `${slug}.md`,
+    filename: `${name}.md`,
+    directory,
     frontmatter: payload.frontmatter,
     body: payload.body,
     hasMemory: payload.frontmatter.memory !== undefined && payload.frontmatter.memory !== 'none',
