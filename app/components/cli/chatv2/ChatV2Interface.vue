@@ -15,7 +15,8 @@ const props = defineProps<{
 // Toast for notifications
 const toast = useToast()
 
-// No URL routing - all navigation handled via internal state
+// Route for URL-based session navigation
+const route = useRoute()
 
 // Chat v2 handler with integrated streaming, permissions, and session store
 const {
@@ -339,7 +340,7 @@ function scrollToBottom(behavior: ScrollBehavior = 'auto') {
   })
 }
 
-// Handle Claude Code history session selection (no URL navigation)
+// Handle Claude Code history session selection
 async function handleClaudeCodeSessionSelected(payload: { projectName: string; sessionId: string; sessionSummary: string; projectDisplayName: string }) {
   viewMode.value = 'history'
   isLiveChat.value = false
@@ -349,6 +350,12 @@ async function handleClaudeCodeSessionSelected(payload: { projectName: string; s
   currentProjectDisplayName.value = payload.projectDisplayName
   isContinuingHistory.value = false  // Reset when selecting a new history session
   isInitialScroll.value = true // Set initial scroll flag
+
+  // Update URL only if not already there (avoids redundant navigation when triggered by route watcher)
+  const targetPath = `/cli/project/${encodeURIComponent(payload.projectName)}/session/${encodeURIComponent(payload.sessionId)}`
+  if (route.path !== targetPath) {
+    await navigateTo(targetPath, { replace: false })
+  }
 
   // Start loading with minimum duration
   isLoadingHistoryWithDelay.value = true
@@ -382,6 +389,9 @@ function handleSelectionCleared() {
   currentProjectDisplayName.value = ''
   isContinuingHistory.value = false
   contextMonitor.resetMetrics()
+  if (route.path !== '/cli') {
+    navigateTo('/cli', { replace: false })
+  }
 }
 
 // Handle new chat - switch to live mode without affecting sidebar
@@ -412,6 +422,10 @@ function handleNewChat(payload?: { workingDir?: string; projectDisplayName?: str
   } else {
     // Reset to prop's default if not provided
     localWorkingDir.value = props.executionOptions.workingDir || ''
+  }
+
+  if (route.path !== '/cli') {
+    navigateTo('/cli', { replace: false })
   }
 }
 
