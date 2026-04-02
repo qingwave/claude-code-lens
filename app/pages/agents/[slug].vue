@@ -8,6 +8,7 @@ const slug = route.params.slug as string
 
 const { fetchOne, remove } = useAgents()
 const { clearChat: clearStudioChat, toolCalls, isStreaming: studioStreaming } = useStudioChat()
+const { reveal } = useReveal()
 
 const frontmatter = ref<AgentFrontmatter>({ name: '', description: '', tools: [] })
 const body = ref('')
@@ -16,8 +17,10 @@ const savedFrontmatter = ref<AgentFrontmatter>({ name: '', description: '', tool
 const loading = ref(true)
 const saving = ref(false)
 const lastModified = ref<number | null>(null)
+const filePath = ref('')
 const skills = ref<AgentSkill[]>([])
 const loadingSkills = ref(false)
+const isTestPanelOpen = ref(true)
 
 const isDirty = computed(() => {
   return body.value !== savedBody.value ||
@@ -29,7 +32,7 @@ const isDraft = computed(() => body.value !== savedBody.value)
 async function loadAgent() {
   loading.value = true
   try {
-    const agent = await fetchOne(slug) as unknown as Record<string, unknown>
+    const agent = await fetchOne(slug) as any
     const fm = agent.frontmatter as AgentFrontmatter
     
     // Ensure memory and tools are initialized
@@ -44,6 +47,7 @@ async function loadAgent() {
     body.value = agent.body as string
     savedBody.value = agent.body as string
     lastModified.value = (agent.lastModified as number) || null
+    filePath.value = agent.filePath || ''
   } catch {
     router.push('/agents')
   } finally {
@@ -138,14 +142,21 @@ useUnsavedChanges(isDirty)
       </div>
       <div class="flex items-center gap-2">
         <UButton
-          :label="saving ? 'Saving...' : 'Save'"
-          icon="i-lucide-save"
+          icon="i-lucide-message-square"
           size="sm"
-          :variant="isDirty ? 'solid' : 'soft'"
-          :color="isDirty ? 'primary' : 'neutral'"
-          :disabled="!isDirty || saving"
-          :loading="saving"
-          @click="save"
+          variant="ghost"
+          :color="isTestPanelOpen ? 'primary' : 'neutral'"
+          :title="isTestPanelOpen ? 'Hide Test Panel' : 'Show Test Panel'"
+          @click="isTestPanelOpen = !isTestPanelOpen"
+        />
+        <UButton
+          v-if="filePath"
+          icon="i-lucide-folder-open"
+          size="sm"
+          variant="ghost"
+          color="neutral"
+          title="Open in Finder"
+          @click="reveal(filePath)"
         />
         <UButton
           label="Delete"
@@ -155,6 +166,16 @@ useUnsavedChanges(isDirty)
           color="error"
           title="Delete agent"
           @click="showDeleteConfirm = true"
+        />
+        <UButton
+          :label="saving ? 'Saving...' : 'Save'"
+          icon="i-lucide-save"
+          size="sm"
+          :variant="isDirty ? 'solid' : 'soft'"
+          :color="isDirty ? 'primary' : 'neutral'"
+          :disabled="!isDirty || saving"
+          :loading="saving"
+          @click="save"
         />
       </div>
     </div>
@@ -167,7 +188,11 @@ useUnsavedChanges(isDirty)
     <!-- Studio panels -->
     <div v-else class="flex-1 flex min-h-0">
       <!-- Left: Editor -->
-      <div class="w-[60%] flex flex-col border-r" style="border-color: var(--border-subtle);">
+      <div 
+        class="flex flex-col transition-all duration-300 ease-in-out" 
+        :class="isTestPanelOpen ? 'w-[70%] border-r' : 'w-full'"
+        style="border-color: var(--border-subtle);"
+      >
         <EditorPanel
           :frontmatter="frontmatter"
           :body="body"
@@ -179,11 +204,30 @@ useUnsavedChanges(isDirty)
       </div>
 
       <!-- Right: Test + Inspector -->
-      <div class="w-[40%] flex flex-col">
+      <div 
+        v-if="isTestPanelOpen"
+        class="w-[30%] flex flex-col transition-all duration-300 ease-in-out"
+      >
         <div class="flex-1 min-h-0">
           <TestPanel :agent-slug="slug" :agent-name="frontmatter.name" :is-draft="isDraft" />
         </div>
         <ExecutionInspector :tool-calls="toolCalls" :is-streaming="studioStreaming" />
+
+        <!-- File location (collapsed) -->
+        <div class="shrink-0 p-4 border-t" style="border-color: var(--border-subtle); background: var(--surface-base);">
+          <details class="group">
+            <summary class="text-[10px] cursor-pointer list-none flex items-center gap-1.5 text-meta hover:text-label transition-colors">
+              <UIcon name="i-lucide-file" class="size-3" />
+              Show file location
+            </summary>
+            <div v-if="filePath" class="mt-2 font-mono text-[10px] pl-4.5 text-meta break-all select-all py-1.5 px-2 rounded bg-card border border-subtle">
+              {{ filePath }}
+            </div>
+            <div v-else class="mt-2 font-mono text-[10px] pl-4.5 text-meta italic">
+              Loading path...
+            </div>
+          </details>
+        </div>
       </div>
     </div>
 

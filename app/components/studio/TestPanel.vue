@@ -2,9 +2,11 @@
 import type { ChatMessage } from '~/types'
 
 const props = defineProps<{
-  agentSlug: string
-  agentName: string
-  isDraft: boolean
+  agentSlug?: string
+  agentName?: string
+  commandSlug?: string
+  skillSlug?: string
+  isDraft?: boolean
 }>()
 
 const { messages, isStreaming, error, activity, toolCalls, sendMessage, stopStreaming, clearChat } = useStudioChat()
@@ -14,6 +16,8 @@ const input = ref('')
 const inputRef = ref<{ focus: () => void; resetHeight: () => void } | null>(null)
 const messagesContainer = ref<HTMLElement | null>(null)
 const streamingDots = ref(0)
+
+const testName = computed(() => props.agentName || props.commandSlug || props.skillSlug || 'Entity')
 
 let dotsInterval: ReturnType<typeof setInterval> | null = null
 watch(isStreaming, (val) => {
@@ -58,7 +62,14 @@ async function handleSend() {
   if (!text) return
   input.value = ''
   inputRef.value?.resetHeight()
-  await sendMessage(text, { agentSlug: props.agentSlug, projectDir: workingDir.value || undefined })
+  
+  // Construct options with all possible entity identifiers
+  const options: any = { projectDir: workingDir.value || undefined }
+  if (props.agentSlug) options.agentSlug = props.agentSlug
+  if (props.commandSlug) options.commandSlug = props.commandSlug
+  if (props.skillSlug) options.skillSlug = props.skillSlug
+
+  await sendMessage(text, options)
 }
 </script>
 
@@ -78,7 +89,7 @@ async function handleSend() {
     <div ref="messagesContainer" class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
       <div v-if="!messages.length" class="flex flex-col items-center justify-center h-full gap-3">
         <UIcon name="i-lucide-message-square" class="size-8" style="color: var(--text-disabled); opacity: 0.5;" />
-        <p class="text-[12px] text-center max-w-[200px]" style="color: var(--text-tertiary);">Test your agent here. Changes to instructions are reflected immediately.</p>
+        <p class="text-[12px] text-center max-w-[200px]" style="color: var(--text-tertiary);">Test your {{ agentSlug ? 'agent' : commandSlug ? 'command' : 'skill' }} here. Changes to instructions are reflected immediately.</p>
       </div>
 
       <template v-for="(msg, idx) in messages" :key="msg.id">
@@ -88,6 +99,6 @@ async function handleSend() {
       <div v-if="error" class="text-[11px] rounded-lg px-3 py-2" style="background: rgba(248, 113, 113, 0.06); color: var(--error);">{{ error }}</div>
     </div>
 
-    <ChatInput ref="inputRef" v-model="input" :placeholder="`Ask ${agentName} something...`" :disabled="isStreaming" :is-streaming="isStreaming" :project-display-path="projectDisplayPath" @send="handleSend" @stop="stopStreaming" />
+    <ChatInput ref="inputRef" v-model="input" :placeholder="`Ask ${testName} something...`" :disabled="isStreaming" :is-streaming="isStreaming" :project-display-path="projectDisplayPath" @send="handleSend" @stop="stopStreaming" />
   </div>
 </template>

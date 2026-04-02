@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { Command, CommandFrontmatter } from '~/types'
+import InstructionEditor from '~/components/studio/InstructionEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const { fetchOne, update, remove } = useCommands()
+const { reveal } = useReveal()
+const { prefillSkill } = useChat()
 
 const slug = route.params.slug as string
 const command = ref<Command | null>(null)
@@ -112,11 +115,16 @@ const isDirty = computed(() => {
     || allowedToolsStr.value !== (command.value.frontmatter['allowed-tools'] || []).join(', ')
 })
 
+const isDraftComputed = computed(() => {
+  if (!command.value) return false
+  return body.value !== command.value.body || JSON.stringify(frontmatter.value) !== JSON.stringify(command.value.frontmatter)
+})
+
 useUnsavedChanges(isDirty)
 </script>
 
 <template>
-  <div>
+  <div class="h-[calc(100vh-4rem)] flex flex-col">
     <PageHeader :title="command?.frontmatter.name || slug">
       <template #leading>
         <NuxtLink to="/commands" class="focus-ring rounded p-1.5 -m-1.5" aria-label="Back to commands">
@@ -133,6 +141,24 @@ useUnsavedChanges(isDirty)
       </template>
       <template #right>
         <UButton
+          icon="i-lucide-message-square"
+          size="sm"
+          variant="ghost"
+          color="neutral"
+          title="Use Command in Chat"
+          :disabled="!command"
+          @click="prefillSkill(command!.frontmatter.name)"
+        />
+        <UButton
+          v-if="command?.filePath"
+          icon="i-lucide-folder-open"
+          size="sm"
+          variant="ghost"
+          color="neutral"
+          title="Open in Finder"
+          @click="reveal(command.filePath)"
+        />
+        <UButton
           label="Delete"
           icon="i-lucide-trash-2"
           size="sm"
@@ -140,93 +166,85 @@ useUnsavedChanges(isDirty)
           color="error"
           @click="showDeleteConfirm = true"
         />
-        <span v-if="isDirty" class="text-[10px] font-mono unsaved-pulse" style="color: var(--warning);">unsaved</span>
-        <UButton label="Save" icon="i-lucide-save" size="sm" :loading="saving" @click="save" />
+        <UButton 
+          label="Save" 
+          icon="i-lucide-save" 
+          size="sm" 
+          :loading="saving" 
+          :variant="isDirty ? 'solid' : 'soft'" 
+          :color="isDirty ? 'primary' : 'neutral'" 
+          :disabled="!isDirty || saving"
+          @click="save" 
+        />
       </template>
     </PageHeader>
 
     <div v-if="command" class="px-6 py-5 space-y-6">
-      <!-- Draft recovery banner -->
-      <div
-        v-if="hasDraft"
-        class="rounded-xl px-4 py-3 flex items-center gap-3"
-        style="background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.12);"
-      >
-        <UIcon name="i-lucide-archive-restore" class="size-4 shrink-0" style="color: var(--info, #3b82f6);" />
-        <span class="text-[12px] flex-1" style="color: var(--text-secondary);">
-          You have an unsaved draft from {{ draftAge }}.
-        </span>
-        <button class="text-[12px] font-medium px-2 py-1 rounded hover-bg" style="color: var(--info, #3b82f6);" @click="restoreDraft">Restore</button>
-        <button class="text-[12px] px-2 py-1 rounded hover-bg text-meta" @click="clearDraft">Dismiss</button>
-      </div>
+      <div class="flex flex-col space-y-6">
+        <!-- Draft recovery banner -->
+        <div
+          v-if="hasDraft"
+          class="rounded-xl px-4 py-3 flex items-center gap-3"
+          style="background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.12);"
+        >
+          <UIcon name="i-lucide-archive-restore" class="size-4 shrink-0" style="color: var(--info, #3b82f6);" />
+          <span class="text-[12px] flex-1" style="color: var(--text-secondary);">
+            You have an unsaved draft from {{ draftAge }}.
+          </span>
+          <button class="text-[12px] font-medium px-2 py-1 rounded hover-bg" style="color: var(--info, #3b82f6);" @click="restoreDraft">Restore</button>
+          <button class="text-[12px] px-2 py-1 rounded hover-bg text-meta" @click="clearDraft">Dismiss</button>
+        </div>
 
-      <!-- Configuration -->
-      <div
-        class="rounded-xl p-5 space-y-4 bg-card"
-      >
-        <h3 class="text-section-label">Configuration</h3>
+        <!-- Configuration -->
+        <div class="rounded-xl p-5 space-y-4 bg-card">
+          <h3 class="text-section-label">Configuration</h3>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="field-group">
+              <label class="field-label">Name</label>
+              <input v-model="frontmatter.name" class="field-input" />
+              <span class="field-hint">The slash command name (e.g., "deploy" becomes /deploy)</span>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Expected Input</label>
+              <input v-model="frontmatter['argument-hint']" class="field-input" placeholder="file name or topic" />
+              <span class="field-hint">Shown as a hint when users type this command</span>
+            </div>
+          </div>
+
           <div class="field-group">
-            <label class="field-label">Name</label>
-            <input v-model="frontmatter.name" class="field-input" />
-            <span class="field-hint">The slash command name (e.g., "deploy" becomes /deploy)</span>
+            <label class="field-label">Description</label>
+            <textarea v-model="frontmatter.description" rows="4" class="field-textarea" />
+            <span class="field-hint">Helps Claude understand when to suggest this command</span>
           </div>
+
           <div class="field-group">
-            <label class="field-label">Expected Input</label>
-            <input v-model="frontmatter['argument-hint']" class="field-input" placeholder="file name or topic" />
-            <span class="field-hint">Shown as a hint when users type this command</span>
+            <label class="field-label">Tool Permissions</label>
+            <input v-model="allowedToolsStr" class="field-input" placeholder="Read, Write, Bash" />
+            <span class="field-hint">Restrict what Claude can do. Leave blank to allow all. Options: Read, Write, Edit, Bash, Glob, Grep</span>
           </div>
         </div>
 
-        <div class="field-group">
-          <label class="field-label">Description</label>
-          <textarea v-model="frontmatter.description" rows="4" class="field-textarea" />
-          <span class="field-hint">Helps Claude understand when to suggest this command</span>
+        <!-- Command Body Editor -->
+        <div class="rounded-xl overflow-hidden bg-card flex flex-col" style="border: 1px solid var(--border-subtle); height: 500px;">
+          <InstructionEditor
+            v-model="body"
+            :agent-name="frontmatter.name"
+            :agent-description="frontmatter.description"
+          />
         </div>
 
-        <div class="field-group">
-          <label class="field-label">Tool Permissions</label>
-          <input v-model="allowedToolsStr" class="field-input" placeholder="Read, Write, Bash" />
-          <span class="field-hint">Restrict what Claude can do. Leave blank to allow all. Options: Read, Write, Edit, Bash, Glob, Grep</span>
-        </div>
-      </div>
-
-      <!-- Command Body Editor -->
-      <div
-        class="rounded-xl overflow-hidden"
-        style="border: 1px solid var(--border-subtle);"
-      >
-        <div class="flex items-center justify-between px-4 py-2.5" style="background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);">
-          <h3 class="text-section-label">Instructions</h3>
-          <div class="flex items-center gap-3">
-            <span class="font-mono text-[10px] text-meta">
-              {{ lineCount }} lines
-            </span>
-            <span class="font-mono text-[10px] text-meta">
-              {{ charCount.toLocaleString() }} chars
-            </span>
+        <!-- File location (collapsed) -->
+        <details class="group">
+          <summary class="text-[10px] cursor-pointer list-none flex items-center gap-1.5 text-meta hover:text-label transition-colors">
+            <UIcon name="i-lucide-file" class="size-3" />
+            Show file location
+          </summary>
+          <div class="mt-2 font-mono text-[10px] pl-4.5 text-meta break-all select-all py-1.5 px-2 rounded bg-card border border-subtle">
+            {{ command.filePath }}
           </div>
-        </div>
-        <textarea
-          v-model="body"
-          class="editor-textarea"
-          style="min-height: 500px;"
-          spellcheck="false"
-          placeholder="Command instructions..."
-        />
+        </details>
       </div>
-
-      <!-- File location (collapsed) -->
-      <details class="group">
-        <summary class="text-[10px] cursor-pointer list-none flex items-center gap-1.5 text-meta">
-          <UIcon name="i-lucide-file" class="size-3" />
-          Show file location
-        </summary>
-        <div class="mt-1 font-mono text-[10px] pl-4.5 text-meta">
-          {{ command.filePath }}
-        </div>
-      </details>
     </div>
 
     <div v-else class="flex justify-center py-16">
