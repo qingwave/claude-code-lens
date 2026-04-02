@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Skill, SkillFrontmatter } from '~/types'
+import InstructionEditor from '~/components/studio/InstructionEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -8,6 +9,8 @@ const { skills, fetchOne, fetchOneByPath, update, remove } = useSkills()
 const { prefillSkill } = useChat()
 const { agents } = useAgents()
 const { workingDir } = useWorkingDir()
+const { reveal } = useReveal()
+const { clearChat: clearStudioChat, toolCalls, isStreaming: studioStreaming } = useStudioChat()
 
 const slug = route.params.slug as string
 const skill = ref<Skill | null>(null)
@@ -20,7 +23,7 @@ const body = ref('')
 const { hasDraft, draftAge, loadDraft, clearDraft, scheduleSave } = useDraftRecovery(`skill:${slug}`)
 
 watch([frontmatter, body], () => {
-  if (skill.value) scheduleSave(frontmatter.value, body.value)
+  if (skill.value && isDirty.value) scheduleSave(frontmatter.value, body.value)
 }, { deep: true })
 
 function restoreDraft() {
@@ -52,6 +55,7 @@ onMounted(async () => {
     }
     frontmatter.value = { ...skill.value.frontmatter }
     body.value = skill.value.body
+    clearStudioChat()
   } catch (err: any) {
     console.error('Skill load error:', err)
     toast.add({ title: 'Skill not found', color: 'error' })
@@ -135,11 +139,16 @@ const isDirty = computed(() => {
     || body.value !== skill.value.body
 })
 
+const isDraftComputed = computed(() => {
+  if (!skill.value) return false
+  return body.value !== skill.value.body || JSON.stringify(frontmatter.value) !== JSON.stringify(skill.value.frontmatter)
+})
+
 useUnsavedChanges(isDirty)
 </script>
 
 <template>
-  <div>
+  <div class="h-full flex flex-col">
     <PageHeader :title="skill?.frontmatter.name || slug">
       <template #leading>
         <NuxtLink to="/skills" class="focus-ring rounded p-1.5 -m-1.5" aria-label="Back to skills">
@@ -151,22 +160,22 @@ useUnsavedChanges(isDirty)
       </template>
       <template #right>
         <UButton
-          label="Use"
-          icon="i-lucide-play"
+          icon="i-lucide-message-square"
           size="sm"
-          variant="soft"
+          variant="ghost"
+          color="neutral"
+          title="Use Skill in Chat"
           :disabled="!skill"
           @click="prefillSkill(skill!.frontmatter.name)"
         />
         <UButton
-          label="Download"
-          icon="i-lucide-download"
+          v-if="skill?.filePath"
+          icon="i-lucide-folder-open"
           size="sm"
-          variant="soft"
+          variant="ghost"
           color="neutral"
-          as="a"
-          :href="`/api/skills/${slug}/export`"
-          download
+          title="Open in Finder"
+          @click="reveal(skill.filePath)"
         />
         <template v-if="!isImported">
           <UButton
@@ -177,208 +186,202 @@ useUnsavedChanges(isDirty)
             color="error"
             @click="showDeleteConfirm = true"
           />
-          <span v-if="isDirty" class="text-[10px] font-mono unsaved-pulse" style="color: var(--warning);">unsaved</span>
-          <UButton label="Save" icon="i-lucide-save" size="sm" :loading="saving" @click="save" />
+          <UButton 
+            label="Save" 
+            icon="i-lucide-save" 
+            size="sm" 
+            :loading="saving" 
+            :variant="isDirty ? 'solid' : 'soft'" 
+            :color="isDirty ? 'primary' : 'neutral'" 
+            :disabled="!isDirty || saving"
+            @click="save" 
+          />
         </template>
-        <UButton v-else label="Edit a copy" icon="i-lucide-copy" size="sm" @click="editCopy" />
+        <UButton v-else label="Edit a copy" icon="i-lucide-copy" size="sm" color="neutral" variant="soft" @click="editCopy" />
       </template>
     </PageHeader>
 
     <div v-if="skill" class="px-6 py-5 space-y-6">
-      <!-- Draft recovery banner -->
-      <div
-        v-if="hasDraft"
-        class="rounded-xl px-4 py-3 flex items-center gap-3"
-        style="background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.12);"
-      >
-        <UIcon name="i-lucide-archive-restore" class="size-4 shrink-0" style="color: var(--info, #3b82f6);" />
-        <span class="text-[12px] flex-1" style="color: var(--text-secondary);">
-          You have an unsaved draft from {{ draftAge }}.
-        </span>
-        <button class="text-[12px] font-medium px-2 py-1 rounded hover-bg" style="color: var(--info, #3b82f6);" @click="restoreDraft">Restore</button>
-        <button class="text-[12px] px-2 py-1 rounded hover-bg text-meta" @click="clearDraft">Dismiss</button>
-      </div>
-
-      <!-- Read-only banner for imported skills -->
-      <div
-        v-if="isImported"
-        class="rounded-xl px-4 py-3 flex items-center gap-3"
-        style="background: var(--badge-subtle-bg); border: 1px solid var(--border-subtle);"
-      >
-        <svg class="size-4 shrink-0 text-label" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-        </svg>
-        <span class="text-[12px] flex-1 text-label">
-          This skill is imported from GitHub and is read-only. Updates from the source may overwrite local changes.
-        </span>
-        <UButton label="Edit a copy" size="xs" variant="soft" @click="editCopy" />
-      </div>
-
-      <!-- Configuration -->
-      <div
-        class="rounded-xl relative z-20"
-        style="border: 1px solid var(--border-subtle);"
-      >
-        <!-- Skill identity banner -->
-        <div class="relative px-5 pt-6 pb-5 rounded-t-xl overflow-hidden" style="background: var(--surface-raised);">
-          <!-- Top accent bar -->
-          <div
-            class="absolute inset-x-0 top-0 h-[3px]"
-            style="background: var(--accent);"
-          />
-
-          <!-- Identity row -->
-          <div class="flex items-start gap-4">
-            <div
-              class="size-11 rounded-xl flex items-center justify-center shrink-0"
-              style="background: var(--accent-muted); border: 1px solid rgba(45, 212, 191, 0.15);"
-            >
-              <UIcon name="i-lucide-sparkles" class="size-5" style="color: var(--accent);" />
-            </div>
-
-            <div class="flex-1 min-w-0 pt-0.5">
-              <div class="flex items-center gap-2.5 flex-wrap">
-                <span class="text-[15px] font-semibold tracking-tight truncate">
-                  {{ frontmatter.name || 'Unnamed Skill' }}
-                </span>
-                <span
-                  v-if="frontmatter.context"
-                  class="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 badge badge-subtle"
-                >
-                  {{ frontmatter.context }}
-                </span>
-                <span
-                  v-if="skill.mcpServer"
-                  class="text-[10px] font-mono px-2 py-0.5 rounded-full shrink-0"
-                  style="background: rgba(99, 102, 241, 0.1); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.2);"
-                >
-                  mcp: {{ skill.mcpServer.name }}
-                </span>
-              </div>
-              <p v-if="frontmatter.description" class="text-[12px] mt-1 leading-relaxed text-label">
-                {{ frontmatter.description }}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Form fields -->
-        <div class="px-5 py-4 space-y-4 rounded-b-xl" style="background: var(--surface-base); border-top: 1px solid var(--border-subtle);">
-          <h3 class="text-section-label">Configuration</h3>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="field-group">
-              <label class="field-label">Name</label>
-              <input v-model="frontmatter.name" class="field-input" :disabled="isImported" />
-              <span class="field-hint">Identifier for this skill. Also used as the slash command name.</span>
-            </div>
-            <div class="field-group">
-              <label class="field-label">Availability</label>
-              <input v-model="frontmatter.context" class="field-input" :disabled="isImported" placeholder="Leave blank for always available" />
-              <span class="field-hint">Restrict when this skill appears (e.g., only in certain repos)</span>
-            </div>
-          </div>
-
-          <div class="field-group">
-            <label class="field-label">Description</label>
-            <textarea v-model="frontmatter.description" rows="4" class="field-textarea" :disabled="isImported" />
-            <span class="field-hint">Helps Claude decide when to use this skill. Be specific about the trigger.</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- MCP Server Info -->
-      <div v-if="skill.mcpServer" class="space-y-3">
-        <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-tertiary);">Associated MCP Server</label>
-        
-        <NuxtLink 
-          :to="`/mcp/${encodeURIComponent(skill.mcpServer.name)}?scope=${skill.mcpServer.scope}`"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all hover:border-accent/30 hover:shadow-sm group/mcp" 
-          style="background: var(--surface-raised); border: 1px solid var(--border-subtle);"
+      <!-- Left: Editor -->
+      <div class="flex flex-col space-y-6">
+        <!-- Draft recovery banner -->
+        <div
+          v-if="hasDraft"
+          class="rounded-xl px-4 py-3 flex items-center gap-3"
+          style="background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.12);"
         >
-          <div class="size-8 rounded-lg flex items-center justify-center shrink-0 transition-colors group-hover/mcp:bg-accent/10" style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.15);">
-            <UIcon name="i-lucide-server" class="size-4" style="color: #818cf8;" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-[12px] font-medium truncate group-hover/mcp:text-accent transition-colors" style="color: var(--text-primary);">{{ skill.mcpServer.name }}</div>
-            <div class="text-[10px] truncate" style="color: var(--text-tertiary);">
-              This skill appears to be part of or uses the {{ skill.mcpServer.name }} MCP server.
+          <UIcon name="i-lucide-archive-restore" class="size-4 shrink-0" style="color: var(--info, #3b82f6);" />
+          <span class="text-[12px] flex-1" style="color: var(--text-secondary);">
+            You have an unsaved draft from {{ draftAge }}.
+          </span>
+          <button class="text-[12px] font-medium px-2 py-1 rounded hover-bg" style="color: var(--info, #3b82f6);" @click="restoreDraft">Restore</button>
+          <button class="text-[12px] px-2 py-1 rounded hover-bg text-meta" @click="clearDraft">Dismiss</button>
+        </div>
+
+        <!-- Read-only banner for imported skills -->
+        <div
+          v-if="isImported"
+          class="rounded-xl px-4 py-3 flex items-center gap-3"
+          style="background: var(--badge-subtle-bg); border: 1px solid var(--border-subtle);"
+        >
+          <svg class="size-4 shrink-0 text-label" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+          </svg>
+          <span class="text-[12px] flex-1 text-label">
+            This skill is imported from GitHub and is read-only. Updates from the source may overwrite local changes.
+          </span>
+          <UButton label="Edit a copy" size="xs" variant="soft" @click="editCopy" />
+        </div>
+
+        <!-- Configuration -->
+        <div
+          class="rounded-xl relative z-20"
+          style="border: 1px solid var(--border-subtle);"
+        >
+          <!-- Skill identity banner -->
+          <div class="relative px-5 pt-6 pb-5 rounded-t-xl overflow-hidden" style="background: var(--surface-raised);">
+            <!-- Top accent bar -->
+            <div
+              class="absolute inset-x-0 top-0 h-[3px]"
+              style="background: var(--accent);"
+            />
+
+            <!-- Identity row -->
+            <div class="flex items-start gap-4">
+              <div
+                class="size-11 rounded-xl flex items-center justify-center shrink-0"
+                style="background: var(--accent-muted); border: 1px solid rgba(45, 212, 191, 0.15);"
+              >
+                <UIcon name="i-lucide-sparkles" class="size-5" style="color: var(--accent);" />
+              </div>
+
+              <div class="flex-1 min-w-0 pt-0.5">
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <span class="text-[15px] font-semibold tracking-tight truncate">
+                    {{ frontmatter.name || 'Unnamed Skill' }}
+                  </span>
+                  <span
+                    v-if="frontmatter.context"
+                    class="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 badge badge-subtle"
+                  >
+                    {{ frontmatter.context }}
+                  </span>
+                  <span
+                    v-if="skill.mcpServer"
+                    class="text-[10px] font-mono px-2 py-0.5 rounded-full shrink-0"
+                    style="background: rgba(99, 102, 241, 0.1); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.2);"
+                  >
+                    mcp: {{ skill.mcpServer.name }}
+                  </span>
+                </div>
+                <p v-if="frontmatter.description" class="text-[12px] mt-1 leading-relaxed text-label">
+                  {{ frontmatter.description }}
+                </p>
+              </div>
             </div>
           </div>
-          <div class="flex flex-col items-end gap-1 shrink-0">
-            <span class="text-[9px] font-mono px-1.5 py-px rounded-full capitalize" style="background: var(--badge-subtle-bg); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">{{ skill.mcpServer.scope }}</span>
-          </div>
-          <div class="shrink-0">
-            <UIcon name="i-lucide-chevron-right" class="size-3.5 opacity-0 group-hover/mcp:opacity-100 transition-all text-meta" />
-          </div>
-        </NuxtLink>
-      </div>
 
-      <!-- Agents using this skill -->
-      <div v-if="skill.agents?.length" class="space-y-3">
-        <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-tertiary);">Agents Preloading This Skill</label>
-        
-        <div class="space-y-2">
+          <!-- Form fields -->
+          <div class="px-5 py-4 space-y-4 rounded-b-xl" style="background: var(--surface-base); border-top: 1px solid var(--border-subtle);">
+            <h3 class="text-section-label">Configuration</h3>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="field-group">
+                <label class="field-label">Name</label>
+                <input v-model="frontmatter.name" class="field-input" :disabled="isImported" />
+                <span class="field-hint">Identifier for this skill. Also used as the slash command name.</span>
+              </div>
+              <div class="field-group">
+                <label class="field-label">Availability</label>
+                <input v-model="frontmatter.context" class="field-input" :disabled="isImported" placeholder="Leave blank for always available" />
+                <span class="field-hint">Restrict when this skill appears (e.g., only in certain repos)</span>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">Description</label>
+              <textarea v-model="frontmatter.description" rows="4" class="field-textarea" :disabled="isImported" />
+              <span class="field-hint">Helps Claude decide when to use this skill. Be specific about the trigger.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- MCP Server Info -->
+        <div v-if="skill.mcpServer" class="space-y-3">
+          <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-tertiary);">Associated MCP Server</label>
+          
           <NuxtLink 
-            v-for="agent in skill.agents" 
-            :key="agent.slug" 
-            :to="`/agents/${agent.slug}`"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all hover:border-accent/30 hover:shadow-sm group/agent" 
+            :to="`/mcp/${encodeURIComponent(skill.mcpServer.name)}?scope=${skill.mcpServer.scope}`"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all hover:border-accent/30 hover:shadow-sm group/mcp" 
             style="background: var(--surface-raised); border: 1px solid var(--border-subtle);"
           >
-            <div class="size-8 rounded-lg flex items-center justify-center shrink-0 transition-colors group-hover/agent:bg-accent/10" style="background: var(--accent-muted); border: 1px solid rgba(229, 169, 62, 0.1);">
-              <UIcon name="i-lucide-user" class="size-4" style="color: var(--accent);" />
+            <div class="size-8 rounded-lg flex items-center justify-center shrink-0 transition-colors group-hover/mcp:bg-accent/10" style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.15);">
+              <UIcon name="i-lucide-server" class="size-4" style="color: #818cf8;" />
             </div>
             <div class="flex-1 min-w-0">
-              <div class="text-[12px] font-medium truncate group-hover/agent:text-accent transition-colors" style="color: var(--text-primary);">{{ agent.name }}</div>
-              <div class="text-[10px] truncate" style="color: var(--text-tertiary);">This agent will have this skill available in its context by default.</div>
+              <div class="text-[12px] font-medium truncate group-hover/mcp:text-accent transition-colors" style="color: var(--text-primary);">{{ skill.mcpServer.name }}</div>
+              <div class="text-[10px] truncate" style="color: var(--text-tertiary);">
+                This skill appears to be part of or uses the {{ skill.mcpServer.name }} MCP server.
+              </div>
+            </div>
+            <div class="flex flex-col items-end gap-1 shrink-0">
+              <span class="text-[9px] font-mono px-1.5 py-px rounded-full capitalize" style="background: var(--badge-subtle-bg); color: var(--text-tertiary); border: 1px solid var(--border-subtle);">{{ skill.mcpServer.scope }}</span>
             </div>
             <div class="shrink-0">
-              <UIcon name="i-lucide-chevron-right" class="size-3.5 opacity-0 group-hover/agent:opacity-100 transition-all text-meta" />
+              <UIcon name="i-lucide-chevron-right" class="size-3.5 opacity-0 group-hover/mcp:opacity-100 transition-all text-meta" />
             </div>
           </NuxtLink>
         </div>
-        <p class="text-[10px] leading-relaxed" style="color: var(--text-tertiary);">
-          These agents have this skill explicitly listed in their preloaded skills. You can manage this in each agent's settings.
-        </p>
-      </div>
 
-      <!-- Skill Prompt Editor -->
-      <div
-        class="rounded-xl overflow-hidden"
-        style="border: 1px solid var(--border-subtle);"
-      >
-        <div class="flex items-center justify-between px-4 py-2.5" style="background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);">
-          <h3 class="text-section-label">Instructions</h3>
-          <div class="flex items-center gap-3">
-            <span class="font-mono text-[10px] text-meta">
-              {{ lineCount }} lines
-            </span>
-            <span class="font-mono text-[10px] text-meta">
-              {{ charCount.toLocaleString() }} chars
-            </span>
+        <!-- Agents using this skill -->
+        <div v-if="skill.agents?.length" class="space-y-3">
+          <label class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--text-tertiary);">Agents Preloading This Skill</label>
+          
+          <div class="space-y-2">
+            <NuxtLink 
+              v-for="agent in skill.agents" 
+              :key="agent.slug" 
+              :to="`/agents/${agent.slug}`"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all hover:border-accent/30 hover:shadow-sm group/agent" 
+              style="background: var(--surface-raised); border: 1px solid var(--border-subtle);"
+            >
+              <div class="size-8 rounded-lg flex items-center justify-center shrink-0 transition-colors group-hover/agent:bg-accent/10" style="background: var(--accent-muted); border: 1px solid rgba(229, 169, 62, 0.1);">
+                <UIcon name="i-lucide-user" class="size-4" style="color: var(--accent);" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-[12px] font-medium truncate group-hover/agent:text-accent transition-colors" style="color: var(--text-primary);">{{ agent.name }}</div>
+                <div class="text-[10px] truncate" style="color: var(--text-tertiary);">This agent will have this skill available in its context by default.</div>
+              </div>
+              <div class="shrink-0">
+                <UIcon name="i-lucide-chevron-right" class="size-3.5 opacity-0 group-hover/agent:opacity-100 transition-all text-meta" />
+              </div>
+            </NuxtLink>
           </div>
+          <p class="text-[10px] leading-relaxed" style="color: var(--text-tertiary);">
+            These agents have this skill explicitly listed in their preloaded skills. You can manage this in each agent's settings.
+          </p>
         </div>
-        <textarea
-          v-model="body"
-          class="editor-textarea"
-          style="min-height: 500px;"
-          spellcheck="false"
-          :disabled="isImported"
-          placeholder="Skill instructions..."
-        />
-      </div>
 
-      <!-- File location (collapsed) -->
-      <details class="group">
-        <summary class="text-[10px] cursor-pointer list-none flex items-center gap-1.5 text-meta">
-          <UIcon name="i-lucide-file" class="size-3" />
-          Show file location
-        </summary>
-        <div class="mt-1 font-mono text-[10px] pl-4.5 text-meta">
-          {{ skill.filePath }}
+        <!-- Skill Prompt Editor -->
+        <div class="rounded-xl overflow-hidden bg-card flex flex-col" style="border: 1px solid var(--border-subtle); height: 500px;">
+          <InstructionEditor
+            v-model="body"
+            :agent-name="frontmatter.name"
+            :agent-description="frontmatter.description"
+          />
         </div>
-      </details>
+
+        <!-- File location (collapsed) -->
+        <details class="group">
+          <summary class="text-[10px] cursor-pointer list-none flex items-center gap-1.5 text-meta hover:text-label transition-colors">
+            <UIcon name="i-lucide-file" class="size-3" />
+            Show file location
+          </summary>
+          <div class="mt-2 font-mono text-[10px] pl-4.5 text-meta break-all select-all py-1.5 px-2 rounded bg-card border border-subtle">
+            {{ skill.filePath }}
+          </div>
+        </details>
+      </div>
     </div>
 
     <div v-else class="flex justify-center py-16">
