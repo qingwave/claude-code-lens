@@ -302,19 +302,25 @@ watch(error, (newError) => {
   }
 })
 
-// Handle Claude Code project selection (no URL navigation)
+// Handle Claude Code project selection
 function handleClaudeCodeProjectSelected(payload: { projectName: string; projectDisplayName: string }) {
   urlProjectName.value = payload.projectName
   urlSessionId.value = null
   currentSessionSummary.value = ''
   currentProjectDisplayName.value = payload.projectDisplayName
-  
+
   // Ensure we are in live view mode but haven't started a chat yet
   viewMode.value = 'live'
   isLiveChat.value = false
-  
+
   // Clear any history selection in shared state
   history.selectedSession.value = null
+
+  // Update URL to reflect selected project
+  const targetPath = `/cli/project/${encodeURIComponent(payload.projectName)}`
+  if (route.path !== targetPath) {
+    navigateTo(targetPath, { replace: false })
+  }
 }
 
 // Utility: delay for minimum loading time
@@ -490,36 +496,42 @@ watch(
     projectsLoaded: history.projects.value.length > 0,
   }),
   async ({ projectName, sessionId, projectsLoaded }) => {
-    // Only act when both params are present in the URL
-    if (!projectName || !sessionId) return
+    // No params — nothing to restore
+    if (!projectName) return
 
-    // Guard: already showing this session
-    if (urlProjectName.value === projectName && urlSessionId.value === sessionId) return
-
-    // Wait for projects to be loaded before resolving session metadata
+    // Wait for projects to be loaded before resolving metadata
     if (!projectsLoaded) return
 
-    // Find project display name from loaded projects
     const project = history.projects.value.find(p => p.name === projectName)
     const projectDisplayName = project?.displayName || projectName
 
-    // Fetch sessions for this project if not already loaded
-    if (history.selectedProject.value?.name !== projectName) {
-      history.selectedProject.value = project || null
-      await history.fetchSessions(projectName)
+    if (sessionId) {
+      // Full session URL: /cli/project/:projectName/session/:sessionId
+      // Guard: already showing this session
+      if (urlProjectName.value === projectName && urlSessionId.value === sessionId) return
+
+      // Fetch sessions for this project if not already loaded
+      if (history.selectedProject.value?.name !== projectName) {
+        history.selectedProject.value = project || null
+        await history.fetchSessions(projectName)
+      }
+
+      const session = history.sessions.value.find(s => s.id === sessionId)
+      const sessionSummary = session?.summary || ''
+
+      await handleClaudeCodeSessionSelected({
+        projectName,
+        sessionId,
+        sessionSummary,
+        projectDisplayName,
+      })
+    } else {
+      // Project-only URL: /cli/project/:projectName
+      // Guard: already showing this project with no session
+      if (urlProjectName.value === projectName && !urlSessionId.value) return
+
+      handleClaudeCodeProjectSelected({ projectName, projectDisplayName })
     }
-
-    // Find session summary
-    const session = history.sessions.value.find(s => s.id === sessionId)
-    const sessionSummary = session?.summary || ''
-
-    // Trigger the existing session selection logic (handles loading, scroll, etc.)
-    await handleClaudeCodeSessionSelected({
-      projectName,
-      sessionId,
-      sessionSummary,
-      projectDisplayName,
-    })
   },
   { immediate: true }
 )
