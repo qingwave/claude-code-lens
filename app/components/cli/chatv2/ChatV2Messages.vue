@@ -11,6 +11,19 @@ const emit = defineEmits<{
   (e: 'openFile', filePath: string): void
 }>()
 
+// Track which user message is showing "copied" state
+const copiedMessageId = ref<string | null>(null)
+
+async function copyUserMessage(messageId: string, content: string) {
+  try {
+    await navigator.clipboard.writeText(content)
+    copiedMessageId.value = messageId
+    setTimeout(() => { copiedMessageId.value = null }, 2000)
+  } catch (e) {
+    console.error('Failed to copy:', e)
+  }
+}
+
 // Group consecutive assistant messages together
 interface MessageGroup {
   id: string
@@ -76,14 +89,29 @@ function handleOpenFile(filePath: string) {
             <div
               v-for="(msg, idx) in group.messages"
               :key="msg.id"
-              class="px-3 md:px-4 py-2 md:py-2.5 min-w-0"
+              class="group relative px-3 md:px-4 py-2 md:py-2.5 min-w-0"
               :class="idx === 0 ? 'rounded-2xl rounded-tr-md' : 'rounded-2xl rounded-r-md'"
               style="background: var(--accent); color: white;"
             >
               <div v-if="msg.images && msg.images.length > 0" class="flex flex-wrap gap-2 mb-2">
                 <img v-for="(img, i) in msg.images" :key="i" :src="img" class="max-w-[160px] md:max-w-[200px] max-h-[160px] md:max-h-[200px] rounded-lg object-contain bg-white/10" />
               </div>
-              <div v-if="msg.content" class="text-[12px] md:text-[13px] whitespace-pre-wrap break-words overflow-wrap-anywhere max-w-full">{{ msg.content }}</div>
+              <div v-if="msg.content" class="text-[12px] md:text-[13px] whitespace-pre-wrap break-words overflow-wrap-anywhere max-w-full" :class="{ 'pb-5': msg.content }">{{ msg.content }}</div>
+
+              <!-- Copy button - inside bubble, bottom right, show on hover -->
+              <button
+                v-if="msg.content"
+                class="absolute bottom-1.5 right-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                style="background: rgba(255, 255, 255, 0.15);"
+                title="Copy to clipboard"
+                @click="copyUserMessage(msg.id, msg.content!)"
+              >
+                <UIcon
+                  :name="copiedMessageId === msg.id ? 'i-lucide-check' : 'i-lucide-copy'"
+                  class="size-3"
+                  :style="{ color: copiedMessageId === msg.id ? '#86efac' : 'rgba(255,255,255,0.7)' }"
+                />
+              </button>
             </div>
             <!-- Single timestamp for the group -->
             <ClientOnly>

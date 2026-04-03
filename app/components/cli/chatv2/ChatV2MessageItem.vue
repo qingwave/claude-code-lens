@@ -119,6 +119,109 @@ function getToolColor(toolName: string): string {
 // Check if this is a TodoWrite tool
 const isTodoWrite = computed(() => props.message.toolName === 'TodoWrite')
 
+// Check if this is a Skill tool
+const isSkill = computed(() => props.message.toolName === 'Skill')
+
+// Get skill name from input
+const skillName = computed(() => {
+  if (!isSkill.value || !props.message.toolInput) return null
+  return props.message.toolInput.skill || null
+})
+
+// Check if this is an Agent tool
+const isAgent = computed(() => props.message.toolName === 'Agent')
+
+// Get agent details from input
+const agentSubtype = computed(() => {
+  if (!isAgent.value || !props.message.toolInput) return null
+  return props.message.toolInput.subagent_type || null
+})
+
+const agentDescription = computed(() => {
+  if (!isAgent.value || !props.message.toolInput) return null
+  return props.message.toolInput.description || null
+})
+
+const agentPrompt = computed(() => {
+  if (!isAgent.value || !props.message.toolInput) return null
+  return props.message.toolInput.prompt || null
+})
+
+// Render agent prompt as markdown
+const renderedAgentPrompt = ref('')
+const showAgentPrompt = ref(false)
+
+watchEffect(async () => {
+  if (!agentPrompt.value) {
+    renderedAgentPrompt.value = ''
+    return
+  }
+  renderedAgentPrompt.value = await renderMarkdownWithHighlighting(agentPrompt.value)
+})
+
+// Check if this is a Task tool (TaskCreate, TaskUpdate, TaskGet, TaskList)
+const isTask = computed(() => {
+  const name = props.message.toolName || ''
+  return name.startsWith('Task')
+})
+
+// Get task action (Create, Update, Get, List)
+const taskAction = computed(() => {
+  if (!isTask.value) return null
+  return (props.message.toolName || '').replace('Task', '')
+})
+
+// Get task details from input
+const taskSubject = computed(() => {
+  if (!isTask.value || !props.message.toolInput) return null
+  return props.message.toolInput.subject || null
+})
+
+const taskDescription = computed(() => {
+  if (!isTask.value || !props.message.toolInput) return null
+  return props.message.toolInput.description || null
+})
+
+const taskActiveForm = computed(() => {
+  if (!isTask.value || !props.message.toolInput) return null
+  return props.message.toolInput.activeForm || null
+})
+
+const taskStatus = computed(() => {
+  if (!isTask.value || !props.message.toolInput) return null
+  return props.message.toolInput.status || null
+})
+
+const taskId = computed(() => {
+  if (!isTask.value || !props.message.toolInput) return null
+  return props.message.toolInput.taskId || null
+})
+
+// Task status styling
+function getTaskStatusStyle(status: string): { bg: string; color: string; icon: string } {
+  switch (status) {
+    case 'completed':
+      return { bg: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', icon: 'i-lucide-check-circle-2' }
+    case 'in_progress':
+      return { bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', icon: 'i-lucide-loader-2' }
+    case 'cancelled':
+      return { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', icon: 'i-lucide-x-circle' }
+    default:
+      return { bg: 'var(--surface-raised)', color: 'var(--text-tertiary)', icon: 'i-lucide-circle' }
+  }
+}
+
+// Task action color
+function getTaskActionColor(action: string): string {
+  switch (action) {
+    case 'Create': return '#22c55e'
+    case 'Update': return '#3b82f6'
+    case 'Get': return '#06b6d4'
+    case 'List': return '#8b5cf6'
+    default: return 'var(--accent)'
+  }
+}
+
 // Check if this is a Bash tool
 const isBash = computed(() => props.message.toolName === 'Bash')
 
@@ -417,6 +520,154 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
               Error
             </span>
           </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Agent - Show subagent_type / description with expandable prompt -->
+    <template v-else-if="message.kind === 'tool_use' && isAgent">
+      <div class="flex items-start gap-2">
+        <!-- Left border indicator -->
+        <div
+          class="w-0.5 self-stretch rounded-full shrink-0"
+          style="background: #f59e0b;"
+        />
+
+        <div class="flex-1 min-w-0">
+          <!-- Header (clickable to expand/collapse prompt) -->
+          <button
+            class="inline-flex items-center gap-1.5 text-[12px] font-medium"
+            style="color: var(--text-secondary);"
+            @click="showAgentPrompt = !showAgentPrompt"
+          >
+            <UIcon
+              :name="showAgentPrompt ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+              class="size-3"
+            />
+            <span>Agent</span>
+            <template v-if="agentSubtype">
+              <span style="color: var(--text-tertiary);">/</span>
+              <span style="color: #f59e0b;">{{ agentSubtype }}</span>
+            </template>
+            <template v-if="agentDescription">
+              <span style="color: var(--text-tertiary);">/</span>
+              <span class="break-all" style="color: var(--text-secondary);">{{ agentDescription }}</span>
+            </template>
+          </button>
+
+          <!-- Expandable prompt rendered as markdown -->
+          <div
+            v-if="showAgentPrompt && renderedAgentPrompt"
+            class="mt-2 p-3 rounded-lg text-[12px] break-words"
+            style="background: var(--surface-raised); border-left: 2px solid #f59e0b;"
+          >
+            <div
+              class="prose prose-sm max-w-none leading-relaxed"
+              style="color: var(--text-secondary);"
+              v-html="renderedAgentPrompt"
+            />
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Skill - Show skill name -->
+    <template v-else-if="message.kind === 'tool_use' && isSkill">
+      <div class="flex items-start gap-2">
+        <!-- Left border indicator -->
+        <div
+          class="w-0.5 self-stretch rounded-full shrink-0"
+          style="background: #a78bfa;"
+        />
+
+        <div class="flex-1 min-w-0">
+          <div class="text-[12px] flex items-center gap-2 flex-wrap">
+            <span style="color: var(--text-secondary);">Skill</span>
+            <template v-if="skillName">
+              <span style="color: var(--text-tertiary);">/</span>
+              <span class="font-medium break-all" style="color: #a78bfa;">
+                {{ skillName }}
+              </span>
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Task tools - TaskCreate, TaskUpdate, TaskGet, TaskList -->
+    <template v-else-if="message.kind === 'tool_use' && isTask">
+      <div class="flex items-start gap-2">
+        <!-- Left border indicator -->
+        <div
+          class="w-0.5 self-stretch rounded-full shrink-0"
+          :style="{ background: getTaskActionColor(taskAction || '') }"
+        />
+
+        <div class="flex-1 min-w-0">
+          <!-- TaskCreate: show subject + description -->
+          <template v-if="taskAction === 'Create'">
+            <div class="space-y-1">
+              <div class="text-[12px] flex items-center gap-1.5 flex-wrap">
+                <UIcon name="i-lucide-circle-plus" class="size-3.5" style="color: #22c55e;" />
+                <span class="font-medium" style="color: var(--text-secondary);">New Task</span>
+                <template v-if="taskSubject">
+                  <span style="color: var(--text-tertiary);">&mdash;</span>
+                  <span class="break-all" style="color: var(--text-primary);">{{ taskSubject }}</span>
+                </template>
+              </div>
+              <div v-if="taskDescription" class="text-[11px] pl-5 break-words" style="color: var(--text-tertiary);">
+                {{ taskDescription }}
+              </div>
+              <div
+                v-if="taskActiveForm"
+                class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full ml-5"
+                style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;"
+              >
+                <UIcon name="i-lucide-loader-2" class="size-2.5 animate-spin" />
+                {{ taskActiveForm }}
+              </div>
+            </div>
+          </template>
+
+          <!-- TaskUpdate: show taskId + status change -->
+          <template v-else-if="taskAction === 'Update'">
+            <div class="text-[12px] flex items-center gap-1.5 flex-wrap">
+              <UIcon
+                :name="taskStatus ? getTaskStatusStyle(taskStatus).icon : 'i-lucide-refresh-cw'"
+                class="size-3.5"
+                :class="{ 'animate-spin': taskStatus === 'in_progress' }"
+                :style="{ color: taskStatus ? getTaskStatusStyle(taskStatus).color : '#3b82f6' }"
+              />
+              <span class="font-medium" style="color: var(--text-secondary);">Task {{ taskId }}</span>
+              <template v-if="taskStatus">
+                <span
+                  class="px-2 py-0.5 rounded-full text-[10px] font-medium"
+                  :style="{
+                    background: getTaskStatusStyle(taskStatus).bg,
+                    color: getTaskStatusStyle(taskStatus).color,
+                  }"
+                >
+                  {{ taskStatus.replace('_', ' ') }}
+                </span>
+              </template>
+            </div>
+          </template>
+
+          <!-- TaskGet / TaskList: simple display -->
+          <template v-else>
+            <div class="text-[12px] flex items-center gap-1.5">
+              <UIcon
+                :name="taskAction === 'List' ? 'i-lucide-list' : 'i-lucide-search'"
+                class="size-3.5"
+                :style="{ color: getTaskActionColor(taskAction || '') }"
+              />
+              <span style="color: var(--text-secondary);">{{ message.toolName }}</span>
+              <template v-if="taskId">
+                <span style="color: var(--text-tertiary);">/</span>
+                <span style="color: var(--text-primary);">Task {{ taskId }}</span>
+              </template>
+            </div>
+          </template>
         </div>
       </div>
     </template>
