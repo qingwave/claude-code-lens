@@ -5,6 +5,7 @@ import { convertToDisplayMessages } from '~/utils/chatMessageConverter'
 import { convertClaudeCodeMessages } from '~/utils/claudeCodeMessageConverter'
 import type { DisplayChatMessage, PermissionMode } from '~/types'
 import { MODEL_OPTIONS_CHAT, DEFAULT_MODEL } from '~/utils/models'
+import ChatV2TerminalPane from '~/components/cli/chatv2/ChatV2TerminalPane.vue'
 
 const props = defineProps<{
   executionOptions: {
@@ -109,6 +110,7 @@ const isLoadingSessions = ref(false)
 // UI state
 const inputText = ref('')
 const messagesContainerRef = ref<HTMLElement | null>(null)
+const terminalPaneRef = ref<InstanceType<typeof ChatV2TerminalPane> | null>(null)
 const sidebarCollapsed = ref(false)
 const mobileSidebarOpen = ref(false)
 const showRightSidebar = ref(false)
@@ -1756,12 +1758,21 @@ function handleClosePreview() {
               </button>
             </UTooltip>
             <UTooltip text="Git Control" :popper="{ placement: 'top' }">
-              <button 
-                class="p-1.5 rounded-md transition-all hover-bg" 
+              <button
+                class="p-1.5 rounded-md transition-all hover-bg"
                 :style="{ color: showRightSidebar && activeRightTab === 'git' ? 'var(--accent)' : 'var(--text-tertiary)' }"
                 @click="openRightTab('git')"
               >
                 <UIcon name="i-lucide-git-branch" class="size-4" />
+              </button>
+            </UTooltip>
+            <UTooltip text="Terminal" :popper="{ placement: 'top' }">
+              <button
+                class="p-1.5 rounded-md transition-all hover-bg"
+                :style="{ color: terminalPaneRef?.isOpen ? 'var(--accent)' : 'var(--text-tertiary)' }"
+                @click="terminalPaneRef?.toggle()"
+              >
+                <UIcon name="i-lucide-terminal" class="size-4" />
               </button>
             </UTooltip>
           </div>
@@ -2032,6 +2043,12 @@ function handleClosePreview() {
           @blur="isInputFocused = false"
         />
       </div>
+
+      <!-- Terminal Pane — always rendered so xterm state survives layout changes -->
+      <ChatV2TerminalPane
+        ref="terminalPaneRef"
+        :working-dir="localWorkingDir || undefined"
+      />
 
       </template>
     </div>
