@@ -2044,14 +2044,15 @@ function handleClosePreview() {
         />
       </div>
 
-      <!-- Terminal Pane — always rendered so xterm state survives layout changes -->
+      </template>
+
+      <!-- Terminal Pane — flex-col child of right panel, always at the bottom -->
       <ChatV2TerminalPane
         ref="terminalPaneRef"
         :working-dir="localWorkingDir || undefined"
       />
-
-      </template>
     </div>
+
   </div>
 
   <!-- Floating Right Sidebar - Details Panels -->

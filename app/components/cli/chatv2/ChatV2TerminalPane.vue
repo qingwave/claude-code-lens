@@ -12,13 +12,12 @@ const emit = defineEmits<{
 
 // ── Terminal ─────────────────────────────────────────────────────────────────
 
+// containerRef lives outside v-if so xterm DOM is never destroyed on hide/show
 const containerRef = ref<HTMLElement | null>(null)
 const { isConnected, shellName, error, mount, unmount, connect, disconnect, focus, clear, syncSize } = useShellTerminal()
-
-// Mount only once when containerRef is first assigned (DOM ready)
-// The actual terminal init happens on first open() call
 let mounted = false
 
+// Init on first open — containerRef is always in DOM so this is reliable
 function initTerminal() {
   if (mounted || !containerRef.value) return
   mounted = true
@@ -79,65 +78,69 @@ function onDragEnd() {
   document.removeEventListener('mousemove', onDragMove)
 }
 
-// ── Collapse / expand ─────────────────────────────────────────────────────────
+// ── Open / close ──────────────────────────────────────────────────────────────
 
 const isOpen = ref(false)
 
+// Toggle visibility — init xterm on first open, subsequent opens just show existing instance
 function toggle() {
   isOpen.value = !isOpen.value
   if (isOpen.value) {
-    // Init on first open so container has real dimensions
     nextTick(() => {
       initTerminal()
-      // Give the CSS transition time to finish, then sync size
       setTimeout(() => {
-        if (containerRef.value) {
-          syncSize(containerRef.value, true)
-          focus()
-        }
+        if (containerRef.value) { syncSize(containerRef.value, true); focus() }
       }, 220)
     })
   }
+}
+
+// Fully destroy — kills PTY, disposes xterm, resets state
+function close() {
+  disconnect()
+  unmount(true)
+  mounted = false
+  isOpen.value = false
 }
 
 defineExpose({ toggle, focus, clear, isOpen })
 </script>
 
 <template>
+  <!-- Wrapper: visible only when open — but containerRef div is always in DOM -->
   <div
-    class="shrink-0 flex flex-col border-t select-none"
+    v-show="isOpen"
+    class="shrink-0 flex flex-col border-t"
     style="border-color: var(--border-subtle);"
   >
-    <!-- Drag handle — sits above the header, only visible when open -->
+    <!-- Drag handle to resize height -->
     <div
-      v-if="isOpen"
       class="h-1 w-full cursor-row-resize hover:bg-accent/40 transition-colors shrink-0"
       :class="isDragging ? 'bg-accent/40' : ''"
       @mousedown="onDragStart"
     />
 
-    <!-- Header bar -->
+    <!-- Header -->
     <div
-      class="shrink-0 h-9 flex items-center justify-between px-3 cursor-pointer"
+      class="shrink-0 h-9 flex items-center justify-between px-3 select-none cursor-pointer"
       style="background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);"
       @click="toggle"
     >
       <div class="flex items-center gap-2">
         <UIcon name="i-lucide-terminal" class="size-3.5" style="color: var(--text-tertiary);" />
         <span class="text-[12px] font-medium" style="color: var(--text-secondary);">Terminal</span>
-        <span v-if="shellName && isOpen" class="text-[10px] font-mono px-1.5 py-0.5 rounded" style="background: var(--surface-sunken); color: var(--text-disabled);">
+        <span v-if="shellName" class="text-[10px] font-mono px-1.5 py-0.5 rounded" style="background: var(--surface-sunken); color: var(--text-disabled);">
           {{ shellName }}
         </span>
         <span
-          v-if="isConnected && isOpen"
+          v-if="isConnected"
           class="size-1.5 rounded-full"
           style="background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.5);"
         />
       </div>
 
-      <div class="flex items-center gap-1">
+      <div class="flex items-center gap-0.5">
         <button
-          v-if="isOpen"
           class="p-1 rounded hover-bg transition-all"
           title="Clear"
           style="color: var(--text-tertiary);"
@@ -146,7 +149,7 @@ defineExpose({ toggle, focus, clear, isOpen })
           <UIcon name="i-lucide-eraser" class="size-3.5" />
         </button>
         <button
-          v-if="isOpen && !isConnected"
+          v-if="!isConnected"
           class="p-1 rounded hover-bg transition-all"
           title="Reconnect"
           style="color: var(--accent);"
@@ -154,22 +157,29 @@ defineExpose({ toggle, focus, clear, isOpen })
         >
           <UIcon name="i-lucide-refresh-cw" class="size-3.5" />
         </button>
-        <UIcon
-          :name="isOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
-          class="size-3.5"
+        <!-- Chevron: hide the pane (keeps PTY alive) -->
+        <button
+          class="p-1 rounded hover-bg transition-all"
+          title="Hide terminal"
           style="color: var(--text-tertiary);"
-        />
+          @click.stop="isOpen = false"
+        >
+          <UIcon name="i-lucide-chevron-down" class="size-3.5" />
+        </button>
+        <!-- X: fully close and kill the session -->
+        <button
+          class="p-1 rounded hover-bg transition-all"
+          title="Close terminal"
+          style="color: var(--text-tertiary);"
+          @click.stop="close"
+        >
+          <UIcon name="i-lucide-x" class="size-3.5" />
+        </button>
       </div>
     </div>
 
-    <!-- Terminal body -->
-    <div
-      class="flex overflow-hidden"
-      :style="{
-        height: isOpen ? `${height}px` : '0px',
-        transition: isDragging ? 'none' : 'height 0.2s ease',
-      }"
-    >
+    <!-- Terminal body — always in DOM, height animated -->
+    <div class="flex" :style="{ height: `${height}px` }">
       <div
         ref="containerRef"
         class="shell-terminal min-h-0 min-w-0 flex-1 overflow-hidden"
@@ -178,7 +188,7 @@ defineExpose({ toggle, focus, clear, isOpen })
 
     <!-- Error banner -->
     <div
-      v-if="error && isOpen"
+      v-if="error"
       class="px-3 py-1.5 text-[11px] shrink-0"
       style="background: rgba(239,68,68,0.08); color: #f87171; border-top: 1px solid rgba(239,68,68,0.2);"
     >
@@ -186,4 +196,3 @@ defineExpose({ toggle, focus, clear, isOpen })
     </div>
   </div>
 </template>
-

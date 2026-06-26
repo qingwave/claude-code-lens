@@ -161,9 +161,9 @@ export function useShellTerminal() {
     ro.observe(container)
   }
 
-  function unmount() {
+  function unmount(clearReplay = false) {
     ro?.disconnect(); ro = null
-    if (term && serialize) replayState = serialize.serialize()
+    if (!clearReplay && term && serialize) replayState = serialize.serialize()
     term?.dispose(); term = null
     serialize = null
     lastSize = null
