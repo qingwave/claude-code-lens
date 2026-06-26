@@ -6,17 +6,23 @@ const props = withDefaults(defineProps<{
   agentName?: string
   agentDescription?: string
   placeholder?: string
+  defaultMode?: 'edit' | 'preview'
 }>(), {
   agentName: '',
   agentDescription: '',
   placeholder: 'Write instructions...',
+  defaultMode: 'preview',
 })
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const mode = ref<'edit' | 'preview'>('edit')
+const mode = ref<'edit' | 'preview'>(props.defaultMode)
+
+onMounted(() => {
+  mode.value = props.defaultMode
+})
 const isImproving = ref(false)
 const improveError = ref<string | null>(null)
 const suggestion = ref<string | null>(null)
