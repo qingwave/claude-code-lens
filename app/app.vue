@@ -221,7 +221,6 @@ function badgeFor(to: string) {
             }"
             :title="sidebarCollapsed ? link.label : undefined"
           >
-            <div v-if="isActive(link.to)" class="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-4 rounded-r-full" style="background: var(--accent); box-shadow: 0 0 10px var(--accent-glow);" />
             <UIcon :name="link.icon" class="size-[15px] shrink-0 transition-colors duration-150" :style="{ color: isActive(link.to) ? 'var(--accent)' : undefined }" />
             <span v-if="!sidebarCollapsed" class="flex-1" style="font-family: var(--font-sans);">{{ link.label }}</span>
           </NuxtLink>
@@ -247,11 +246,6 @@ function badgeFor(to: string) {
             :title="sidebarCollapsed ? link.label : undefined"
           >
             <!-- Active indicator bar -->
-            <div
-              v-if="isActive(link.to)"
-              class="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-4 rounded-r-full"
-              style="background: var(--accent); box-shadow: 0 0 10px var(--accent-glow);"
-            />
             <UIcon :name="link.icon" class="size-[15px] shrink-0 transition-colors duration-150" :style="{ color: isActive(link.to) ? 'var(--accent)' : undefined }" />
             <template v-if="!sidebarCollapsed">
               <span class="flex-1" style="font-family: var(--font-sans);">{{ link.label }}</span>
@@ -285,11 +279,6 @@ function badgeFor(to: string) {
             }"
             :title="sidebarCollapsed ? link.label : undefined"
           >
-            <div
-              v-if="isActive(link.to)"
-              class="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-4 rounded-r-full"
-              style="background: var(--accent); box-shadow: 0 0 10px var(--accent-glow);"
-            />
             <UIcon :name="link.icon" class="size-[15px] shrink-0 transition-colors duration-150" :style="{ color: isActive(link.to) ? 'var(--accent)' : undefined }" />
             <template v-if="!sidebarCollapsed">
               <span class="flex-1" style="font-family: var(--font-sans);">{{ link.label }}</span>
@@ -316,11 +305,6 @@ function badgeFor(to: string) {
             }"
             :title="sidebarCollapsed ? link.label : undefined"
           >
-            <div
-              v-if="isActive(link.to)"
-              class="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-4 rounded-r-full"
-              style="background: var(--accent); box-shadow: 0 0 10px var(--accent-glow);"
-            />
             <UIcon :name="link.icon" class="size-[15px] shrink-0 transition-colors duration-150" :style="{ color: isActive(link.to) ? 'var(--accent)' : undefined }" />
             <span v-if="!sidebarCollapsed" style="font-family: var(--font-sans);">{{ link.label }}</span>
           </NuxtLink>

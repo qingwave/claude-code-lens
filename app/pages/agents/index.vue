@@ -128,12 +128,6 @@ async function useTemplate(templateId: string) {
               :to="`/agents/${agent.slug}`"
               class="rounded-xl p-4 focus-ring hover-lift border border-subtle relative overflow-hidden group bg-card"
             >
-              <!-- Color accent bar -->
-              <div
-                class="absolute inset-x-0 top-0 h-[4px] transition-opacity duration-200"
-                :style="{ background: getAgentColor(agent.frontmatter.color) }"
-              />
-
               <!-- Hover glow in agent color -->
               <div
                 class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"

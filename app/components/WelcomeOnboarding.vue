@@ -83,12 +83,6 @@ async function useTemplate(templateId: string) {
           :disabled="creating !== null"
           @click="useTemplate(template.id)"
         >
-          <!-- Color accent bar -->
-          <div
-            class="absolute inset-x-0 top-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity"
-            :style="{ background: getAgentColor(template.frontmatter.color) }"
-          />
-
           <div class="flex items-center gap-2.5 mb-2">
             <UIcon :name="template.icon" class="size-4 shrink-0 text-label" />
             <span class="text-[13px] font-medium">{{ template.frontmatter.name }}</span>

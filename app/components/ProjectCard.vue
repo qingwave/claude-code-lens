@@ -22,12 +22,6 @@ defineProps<{
     @mouseenter="($event.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)'; ($event.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; ($event.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px var(--card-shadow)'"
     @mouseleave="($event.currentTarget as HTMLElement).style.borderColor = 'var(--border-subtle)'; ($event.currentTarget as HTMLElement).style.transform = ''; ($event.currentTarget as HTMLElement).style.boxShadow = ''"
   >
-    <!-- Color accent bar -->
-    <div
-      class="absolute inset-x-0 top-0 h-[4px]"
-      style="background: var(--accent);"
-    />
-
     <!-- Hover glow -->
     <div
       class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"

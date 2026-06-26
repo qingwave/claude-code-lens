@@ -252,11 +252,6 @@ useUnsavedChanges(isDirty)
         >
           <!-- Skill identity banner -->
           <div class="relative px-5 pt-6 pb-5 rounded-t-xl overflow-hidden" style="background: var(--surface-raised);">
-            <!-- Top accent bar -->
-            <div
-              class="absolute inset-x-0 top-0 h-[3px]"
-              style="background: var(--accent);"
-            />
 
             <!-- Identity row -->
             <div class="flex items-start gap-4">
