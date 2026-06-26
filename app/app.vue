@@ -108,8 +108,13 @@ onMounted(async () => {
   initialized.value = true
 })
 
+const navPrimary = [
+  { label: 'CLI', icon: 'i-lucide-terminal-square', to: '/cli' },
+  { label: 'Artifacts', icon: 'i-lucide-folder-root', to: '/project-artifacts' },
+  { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
+]
+
 const navTop = [
-  { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/' },
   { label: 'Agents', icon: 'i-lucide-cpu', to: '/agents' },
   { label: 'Workflows', icon: 'i-lucide-git-branch', to: '/workflows' },
   { label: 'Commands', icon: 'i-lucide-terminal', to: '/commands' },
@@ -119,10 +124,7 @@ const navTop = [
   { label: 'Output Styles', icon: 'i-lucide-palette', to: '/output-styles' },
 ]
 
-const navMid = [
-  { key: 'artifacts', label: 'Artifacts', icon: 'i-lucide-folder-root', to: '/project-artifacts' },
-  { key: 'cli', label: 'CLI', icon: 'i-lucide-terminal-square', to: '/cli' },
-]
+const navMid: { key: string; label: string; icon: string; to: string }[] = []
 
 const navBottom = [
   { label: 'Explore', icon: 'i-lucide-compass', to: '/explore' },
@@ -131,7 +133,6 @@ const navBottom = [
 ]
 
 function isActive(to: string) {
-  if (to === '/') return route.path === '/'
   // Exact match or sub-route
   return route.path === to || route.path.startsWith(to + '/')
 }
@@ -167,7 +168,7 @@ function badgeFor(to: string) {
 
         <!-- Brand -->
         <div class="h-[56px] flex items-center gap-2.5 relative" :class="sidebarCollapsed ? 'justify-center px-2' : 'px-4'">
-          <NuxtLink to="/" class="flex items-center gap-2.5 flex-1 min-w-0 group/brand" v-if="!sidebarCollapsed">
+          <NuxtLink to="/cli" class="flex items-center gap-2.5 flex-1 min-w-0 group/brand" v-if="!sidebarCollapsed">
             <div
               class="size-7 rounded-lg flex items-center justify-center relative shrink-0 transition-transform duration-200 group-hover/brand:scale-105"
               style="background: linear-gradient(135deg, rgba(229, 169, 62, 0.18) 0%, rgba(229, 169, 62, 0.06) 100%); border: 1px solid rgba(229, 169, 62, 0.15);"
@@ -203,6 +204,31 @@ function badgeFor(to: string) {
 
         <!-- Primary Nav -->
         <nav class="flex-1 pt-1 space-y-0.5 overflow-y-auto" :class="sidebarCollapsed ? 'px-1.5' : 'px-2.5'">
+          <!-- Primary Section: CLI, Artifacts, Dashboard -->
+          <NuxtLink
+            v-for="link in navPrimary"
+            :key="link.to"
+            :to="link.to"
+            class="nav-item group flex items-center rounded-lg text-[13px] transition-all duration-150 relative focus-ring"
+            :class="[
+              sidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-2.5 px-3 py-[7px]',
+              { 'nav-item--active': isActive(link.to) }
+            ]"
+            :style="{
+              color: isActive(link.to) ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              fontWeight: isActive(link.to) ? '500' : '400',
+              background: isActive(link.to) ? 'var(--accent-muted)' : undefined,
+            }"
+            :title="sidebarCollapsed ? link.label : undefined"
+          >
+            <div v-if="isActive(link.to)" class="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-4 rounded-r-full" style="background: var(--accent); box-shadow: 0 0 10px var(--accent-glow);" />
+            <UIcon :name="link.icon" class="size-[15px] shrink-0 transition-colors duration-150" :style="{ color: isActive(link.to) ? 'var(--accent)' : undefined }" />
+            <span v-if="!sidebarCollapsed" class="flex-1" style="font-family: var(--font-sans);">{{ link.label }}</span>
+          </NuxtLink>
+
+          <!-- Separator -->
+          <div class="my-3" :class="sidebarCollapsed ? 'mx-1' : 'mx-2'" style="border-top: 1px solid var(--border-subtle);" />
+
           <!-- Top Section -->
           <NuxtLink
             v-for="link in navTop"
@@ -240,7 +266,7 @@ function badgeFor(to: string) {
           </NuxtLink>
 
           <!-- Separator 1 -->
-          <div class="my-3" :class="sidebarCollapsed ? 'mx-1' : 'mx-2'" style="border-top: 1px solid var(--border-subtle);" />
+          <div v-if="navMid.length > 0" class="my-3" :class="sidebarCollapsed ? 'mx-1' : 'mx-2'" style="border-top: 1px solid var(--border-subtle);" />
 
           <!-- Mid Section: Projects & CLI -->
           <NuxtLink
