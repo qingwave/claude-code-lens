@@ -559,10 +559,23 @@ const displayMessages = computed<DisplayChatMessage[]>(() => {
         // If we have live messages or streaming text, combine them
         if (liveMessages.length > 0 || streamingText.value) {
           const newMessages = convertToDisplayMessages(liveMessages, streamingText.value)
-          
-          // Dedup by ID - history messages take priority
+
+          // Dedup by ID first, then by role+content for messages with different IDs
+          // (history user messages have JSONL uuid, live echo has user-{timestamp})
           const historyIds = new Set(historyMessages.map(m => m.id))
-          const uniqueNewMessages = newMessages.filter(m => !historyIds.has(m.id))
+          const historyKeys = new Set(
+            historyMessages
+              .filter(m => m.role === 'user')
+              .map(m => `${m.role}:${(m.content || '').toString().trim().substring(0, 100)}`)
+          )
+          const uniqueNewMessages = newMessages.filter(m => {
+            if (historyIds.has(m.id)) return false
+            if (m.role === 'user') {
+              const key = `${m.role}:${(m.content || '').toString().trim().substring(0, 100)}`
+              if (historyKeys.has(key)) return false
+            }
+            return true
+          })
           
           merged = [...historyMessages, ...uniqueNewMessages]
         } else {
@@ -1801,7 +1814,7 @@ function handleClosePreview() {
                 <div class="size-20 mx-auto mb-6 rounded-3xl flex items-center justify-center" style="background: linear-gradient(135deg, rgba(229, 169, 62, 0.1) 0%, rgba(229, 169, 62, 0.05) 100%); border: 1px solid rgba(229, 169, 62, 0.1);">
                   <UIcon :name="urlProjectName ? 'i-lucide-folder-root' : 'i-lucide-terminal'" class="size-10" style="color: var(--accent);" />
                 </div>
-                <h2 class="text-[20px] font-semibold mb-3" style="color: var(--text-primary); font-family: var(--font-sans);">
+                <h2 class="text-[20px] font-semibold mb-3" style="color: var(--text-primary); font-family: var(--font-display);">
                   {{ urlProjectName ? currentProjectDisplayName : 'Claude Code CLI' }}
                 </h2>
                 <p class="text-[14px] leading-relaxed mb-8" style="color: var(--text-secondary);">

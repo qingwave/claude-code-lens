@@ -12,6 +12,11 @@ const { styles, fetchStyles } = useOutputStyles()
 const initialized = ref(false)
 const showSearch = ref(false)
 const sidebarCollapsed = useState('sidebar-collapsed', () => false)
+
+// Auto-collapse sidebar when entering CLI, restore when leaving
+watch(() => route.path, (path) => {
+  sidebarCollapsed.value = path.startsWith('/cli')
+}, { immediate: true })
 const { isPanelOpen: chatOpen } = useChat()
 const { workingDir, displayPath, setWorkingDir, clearWorkingDir } = useWorkingDir()
 const colorMode = useColorMode()
@@ -184,21 +189,27 @@ function badgeFor(to: string) {
               </span>
             </div>
           </NuxtLink>
-          <div v-else class="size-7 rounded-lg flex items-center justify-center relative shrink-0"
+          <!-- Collapsed: clicking the icon expands the sidebar -->
+          <button
+            v-else
+            class="size-7 rounded-lg flex items-center justify-center relative shrink-0 transition-all duration-150 focus-ring press-scale"
             style="background: linear-gradient(135deg, rgba(229, 169, 62, 0.18) 0%, rgba(229, 169, 62, 0.06) 100%); border: 1px solid rgba(229, 169, 62, 0.15);"
+            title="Expand sidebar"
+            @click="sidebarCollapsed = false"
           >
             <UIcon name="i-lucide-bot" class="size-3.5" style="color: var(--accent);" />
-          </div>
-          <!-- Collapse toggle -->
+          </button>
+          <!-- Collapse toggle — only shown when expanded -->
           <button
+            v-if="!sidebarCollapsed"
             class="hidden md:flex size-7 items-center justify-center rounded-lg transition-all duration-150 focus-ring press-scale shrink-0"
             style="color: var(--text-tertiary);"
-            :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+            :title="'Collapse sidebar'"
             @mouseenter="($event.currentTarget as HTMLElement).style.background = 'var(--surface-hover)'"
             @mouseleave="($event.currentTarget as HTMLElement).style.background = 'transparent'"
-            @click="sidebarCollapsed = !sidebarCollapsed"
+            @click="sidebarCollapsed = true"
           >
-            <UIcon :name="sidebarCollapsed ? 'i-lucide-panel-left-open' : 'i-lucide-panel-left-close'" class="size-4" />
+            <UIcon name="i-lucide-panel-left-close" class="size-4" />
           </button>
         </div>
 

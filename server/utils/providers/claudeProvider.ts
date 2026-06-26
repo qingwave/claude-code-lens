@@ -59,7 +59,57 @@ interface QueryInstance {
 
 const activeQueries = new Map<string, QueryInstance>()
 
-// Store pending permission approvals (Promise resolvers/rejectors keyed by permissionId)
+/**
+ * Check if a session is currently busy (occupied by an active Claude Code process).
+ * Reads ~/.claude/sessions/*.json to find sessions with status 'busy'.
+ */
+async function isSessionBusy(sessionId: string): Promise<boolean> {
+  try {
+    const sessionsDir = join(getClaudeDir(), 'sessions')
+    if (!existsSync(sessionsDir)) return false
+    const files = await fs.readdir(sessionsDir)
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue
+      try {
+        const raw = readFileSync(join(sessionsDir, file), 'utf-8')
+        const data = JSON.parse(raw)
+        if (data.sessionId === sessionId && data.status === 'busy') return true
+      } catch { /* skip malformed */ }
+    }
+  } catch { /* sessions dir may not exist */ }
+  return false
+}
+
+/**
+ * Get the original cwd of a session by scanning project JSONL files.
+ * The SDK requires the same cwd used when the session was created to resume it.
+ */
+async function getSessionCwd(sessionId: string): Promise<string | null> {
+  try {
+    const projectsDir = join(getClaudeDir(), 'projects')
+    if (!existsSync(projectsDir)) return null
+    const projects = await fs.readdir(projectsDir)
+    for (const project of projects) {
+      const projectDir = join(projectsDir, project)
+      try {
+        const stat = await fs.stat(projectDir)
+        if (!stat.isDirectory()) continue
+        const files = await fs.readdir(projectDir)
+        const jsonlFile = files.find(f => f === `${sessionId}.jsonl`)
+        if (!jsonlFile) continue
+        const content = readFileSync(join(projectDir, jsonlFile), 'utf-8')
+        for (const line of content.split('\n')) {
+          if (!line.trim()) continue
+          try {
+            const entry = JSON.parse(line)
+            if (entry.cwd) return entry.cwd
+          } catch { continue }
+        }
+      } catch { continue }
+    }
+  } catch { /* ignore */ }
+  return null
+}
 interface PermissionResolver {
   resolve: (decision: { allow: boolean; message?: string; updatedInput?: any }) => void
   reject: (error: Error) => void
@@ -133,10 +183,11 @@ export const claudeProvider: ProviderAdapter = {
     let sessionCreatedSent = false
     let accumulatedText = ''
     let hasTextMessageFromResult = false
+    let sdkOptions: any = {}
 
     try {
       // Prepare SDK options
-      const sdkOptions: any = {
+      sdkOptions = {
         cwd: options.workingDir || process.cwd(),
         permissionMode: mapPermissionMode(options.permissionMode),
         allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'],
@@ -176,9 +227,22 @@ export const claudeProvider: ProviderAdapter = {
       // claudecodeui pattern: always pass resume if there's a real session ID.
       const isRealSessionId = options.sessionId && !options.sessionId.startsWith('new-session-')
       if (isRealSessionId) {
-        sdkOptions.resume = options.sessionId
-        capturedSessionId = options.sessionId ?? null
-        console.log('[ClaudeProvider] Resuming SDK session:', options.sessionId)
+        // Don't resume a session that is currently busy (e.g. the active Claude Code process)
+        const isBusy = await isSessionBusy(options.sessionId!)
+        if (isBusy) {
+          console.log('[ClaudeProvider] Session is busy, starting new session instead of resuming:', options.sessionId)
+        } else {
+          sdkOptions.resume = options.sessionId
+          capturedSessionId = options.sessionId ?? null
+          // Use the session's original cwd so SDK can find the conversation
+          const sessionCwd = await getSessionCwd(options.sessionId!)
+          if (sessionCwd) {
+            sdkOptions.cwd = sessionCwd
+            console.log('[ClaudeProvider] Resuming SDK session:', options.sessionId, 'cwd:', sessionCwd)
+          } else {
+            console.log('[ClaudeProvider] Resuming SDK session:', options.sessionId)
+          }
+        }
       } else {
         console.log('[ClaudeProvider] Starting new SDK session')
       }
