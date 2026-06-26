@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { Settings } from '~/types'
+import { MODEL_OPTIONS_COMPACT, DEFAULT_MODEL } from '~/utils/models'
+import type { AgentModel } from '~/types'
 
 const { settings, loading, load, save } = useSettings()
 const {
@@ -30,6 +32,8 @@ const repoToRemove = ref<{ owner: string; repo: string; type: 'skills' | 'agents
 onMounted(async () => {
   await load()
   syncRawJson()
+  loadClaudeMd()
+  loadMemoryMd()
 })
 
 onMounted(async () => {
@@ -113,6 +117,52 @@ async function toggleAlwaysThinking(enabled: boolean) {
   await updateSetting({ alwaysThinkingEnabled: enabled })
 }
 
+// ---- Default model ----
+
+const defaultModel = ref<AgentModel | ''>('')
+
+watch(settings, (val) => {
+  defaultModel.value = (val?.model as AgentModel) || ''
+}, { immediate: true })
+
+async function saveDefaultModel(val: AgentModel | '') {
+  defaultModel.value = val
+  if (!val) {
+    const { model: _, ...rest } = settings.value || {}
+    await updateSetting(rest as Settings)
+  } else {
+    await updateSetting({ model: val })
+  }
+}
+
+// ---- Environment variables ----
+
+const envRows = ref<{ key: string; value: string }[]>([])
+
+watch(settings, (val) => {
+  const env = (val?.env as Record<string, string>) || {}
+  envRows.value = Object.entries(env).map(([key, value]) => ({ key, value }))
+  if (envRows.value.length === 0) envRows.value.push({ key: '', value: '' })
+}, { immediate: true })
+
+function addEnvRow() {
+  envRows.value.push({ key: '', value: '' })
+}
+
+function removeEnvRow(idx: number) {
+  envRows.value.splice(idx, 1)
+  if (envRows.value.length === 0) envRows.value.push({ key: '', value: '' })
+  saveEnvVars()
+}
+
+async function saveEnvVars() {
+  const env: Record<string, string> = {}
+  for (const row of envRows.value) {
+    if (row.key.trim()) env[row.key.trim()] = row.value
+  }
+  await updateSetting({ env: Object.keys(env).length > 0 ? env : undefined })
+}
+
 async function togglePlugin(name: string, enabled: boolean) {
   if (!settings.value) return
   await updateSetting({
@@ -127,6 +177,54 @@ async function removePlugin(name: string) {
   if (!settings.value?.enabledPlugins) return
   const { [name]: _, ...rest } = settings.value.enabledPlugins as Record<string, boolean>
   await updateSetting({ enabledPlugins: rest })
+}
+
+// ---- Permissions ----
+
+const permAllowRules = ref<string[]>([])
+const permDenyRules = ref<string[]>([])
+const newAllowRule = ref('')
+const newDenyRule = ref('')
+
+watch(settings, (val) => {
+  const perms = val?.permissions as { allow?: string[]; deny?: string[] } | undefined
+  permAllowRules.value = [...(perms?.allow || [])]
+  permDenyRules.value = [...(perms?.deny || [])]
+}, { immediate: true })
+
+async function savePermissions() {
+  const allow = permAllowRules.value.filter(r => r.trim())
+  const deny = permDenyRules.value.filter(r => r.trim())
+  const permissions: Record<string, string[]> = {}
+  if (allow.length) permissions.allow = allow
+  if (deny.length) permissions.deny = deny
+  await updateSetting({ permissions: Object.keys(permissions).length > 0 ? permissions : undefined })
+}
+
+function addAllowRule() {
+  const rule = newAllowRule.value.trim()
+  if (!rule || permAllowRules.value.includes(rule)) return
+  permAllowRules.value.push(rule)
+  newAllowRule.value = ''
+  savePermissions()
+}
+
+function removeAllowRule(idx: number) {
+  permAllowRules.value.splice(idx, 1)
+  savePermissions()
+}
+
+function addDenyRule() {
+  const rule = newDenyRule.value.trim()
+  if (!rule || permDenyRules.value.includes(rule)) return
+  permDenyRules.value.push(rule)
+  newDenyRule.value = ''
+  savePermissions()
+}
+
+function removeDenyRule(idx: number) {
+  permDenyRules.value.splice(idx, 1)
+  savePermissions()
 }
 
 // ---- Status line ----
@@ -181,6 +279,7 @@ const hookEventOptions = [
   { value: 'Notification', label: 'When a notification is sent', description: 'Triggered when the system sends a notification' },
   { value: 'Stop', label: 'When Claude finishes', description: 'Triggered when the session finishes' },
   { value: 'SubagentStop', label: 'When a sub-agent finishes', description: 'Triggered when a background sub-agent finishes' },
+  { value: 'PreCompact', label: 'Before context is compacted', description: 'Triggered before Claude compresses the context window' },
 ]
 
 const hookEventLabels: Record<string, string> = {
@@ -189,6 +288,7 @@ const hookEventLabels: Record<string, string> = {
   Notification: 'When a notification is sent',
   Stop: 'When Claude finishes',
   SubagentStop: 'When a sub-agent finishes',
+  PreCompact: 'Before context is compacted',
 }
 
 async function addHook() {
@@ -224,6 +324,112 @@ async function removeHook(event: string, index: number) {
   }
 
   await updateSetting({ hooks: Object.keys(updatedHooks).length > 0 ? updatedHooks : undefined })
+}
+
+// ---- CLAUDE.md ----
+
+const claudeMdContent = ref('')
+const claudeMdDraft = ref('')
+const claudeMdExists = ref(false)
+const claudeMdLoading = ref(false)
+const claudeMdSaving = ref(false)
+const claudeMdEditing = ref(false)
+const claudeMdDirty = computed(() => claudeMdDraft.value !== claudeMdContent.value)
+
+const CLAUDE_MD_DEFAULT = `# Project Instructions
+
+This file provides instructions to Claude Code when working in this directory.
+
+## Guidelines
+
+-
+`
+
+async function loadClaudeMd() {
+  claudeMdLoading.value = true
+  try {
+    const res = await $fetch<{ exists: boolean; content: string }>('/api/claude-md')
+    claudeMdExists.value = res.exists
+    claudeMdContent.value = res.content
+    claudeMdDraft.value = res.content
+    claudeMdEditing.value = res.exists
+  } catch (e: any) {
+    toast.add({ title: 'Failed to load CLAUDE.md', description: e.message, color: 'error' })
+  } finally {
+    claudeMdLoading.value = false
+  }
+}
+
+async function saveClaudeMd() {
+  claudeMdSaving.value = true
+  try {
+    await $fetch('/api/claude-md', { method: 'PUT', body: { content: claudeMdDraft.value } })
+    claudeMdContent.value = claudeMdDraft.value
+    claudeMdExists.value = true
+    claudeMdEditing.value = true
+    toast.add({ title: 'CLAUDE.md saved', color: 'success' })
+  } catch (e: any) {
+    toast.add({ title: 'Failed to save CLAUDE.md', description: e.message, color: 'error' })
+  } finally {
+    claudeMdSaving.value = false
+  }
+}
+
+function createClaudeMd() {
+  claudeMdDraft.value = CLAUDE_MD_DEFAULT
+  claudeMdEditing.value = true
+}
+
+// ---- MEMORY.md ----
+
+const memoryMdContent = ref('')
+const memoryMdDraft = ref('')
+const memoryMdExists = ref(false)
+const memoryMdLoading = ref(false)
+const memoryMdSaving = ref(false)
+const memoryMdEditing = ref(false)
+const memoryMdDirty = computed(() => memoryMdDraft.value !== memoryMdContent.value)
+
+const MEMORY_MD_DEFAULT = `# Memory
+
+Claude will remember the following facts across all conversations:
+
+-
+`
+
+async function loadMemoryMd() {
+  memoryMdLoading.value = true
+  try {
+    const res = await $fetch<{ exists: boolean; content: string }>('/api/memory-md')
+    memoryMdExists.value = res.exists
+    memoryMdContent.value = res.content
+    memoryMdDraft.value = res.content
+    memoryMdEditing.value = res.exists
+  } catch (e: any) {
+    toast.add({ title: 'Failed to load MEMORY.md', description: e.message, color: 'error' })
+  } finally {
+    memoryMdLoading.value = false
+  }
+}
+
+async function saveMemoryMd() {
+  memoryMdSaving.value = true
+  try {
+    await $fetch('/api/memory-md', { method: 'PUT', body: { content: memoryMdDraft.value } })
+    memoryMdContent.value = memoryMdDraft.value
+    memoryMdExists.value = true
+    memoryMdEditing.value = true
+    toast.add({ title: 'MEMORY.md saved', color: 'success' })
+  } catch (e: any) {
+    toast.add({ title: 'Failed to save MEMORY.md', description: e.message, color: 'error' })
+  } finally {
+    memoryMdSaving.value = false
+  }
+}
+
+function createMemoryMd() {
+  memoryMdDraft.value = MEMORY_MD_DEFAULT
+  memoryMdEditing.value = true
 }
 
 // ---- Raw JSON ----
@@ -312,6 +518,157 @@ const lineCount = computed(() => rawJson.value.split('\n').length)
                 <span class="field-toggle__thumb" />
               </span>
             </label>
+          </div>
+
+          <!-- Default model -->
+          <div>
+            <div class="text-[13px] font-medium mb-1">Default Model</div>
+            <div class="text-[12px] text-label mb-2">Model used when no agent specifies one.</div>
+            <div class="flex gap-1.5">
+              <button
+                v-for="opt in MODEL_OPTIONS_COMPACT"
+                :key="opt.value"
+                class="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors focus-ring"
+                :style="defaultModel === opt.value
+                  ? 'background: var(--accent); color: var(--accent-fg);'
+                  : 'background: var(--input-bg); color: var(--text-secondary);'"
+                @click="saveDefaultModel(opt.value)"
+              >
+                {{ opt.label }}
+              </button>
+              <button
+                class="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors focus-ring"
+                :style="!defaultModel
+                  ? 'background: var(--accent); color: var(--accent-fg);'
+                  : 'background: var(--input-bg); color: var(--text-secondary);'"
+                @click="saveDefaultModel('')"
+              >
+                Default
+              </button>
+            </div>
+          </div>
+
+          <!-- Environment variables -->
+          <div>
+            <div class="text-[13px] font-medium mb-1">Environment Variables</div>
+            <div class="text-[12px] text-label mb-2">Passed to every Claude Code session.</div>
+            <div class="space-y-1.5">
+              <div
+                v-for="(row, idx) in envRows"
+                :key="idx"
+                class="flex gap-2 items-center"
+              >
+                <input
+                  v-model="row.key"
+                  class="field-input font-mono text-[12px] flex-1"
+                  placeholder="KEY"
+                  @blur="saveEnvVars"
+                  @keydown.enter="saveEnvVars"
+                />
+                <span class="text-meta text-[12px]">=</span>
+                <input
+                  v-model="row.value"
+                  class="field-input font-mono text-[12px] flex-[2]"
+                  placeholder="value"
+                  @blur="saveEnvVars"
+                  @keydown.enter="saveEnvVars"
+                />
+                <button
+                  class="p-1.5 rounded focus-ring text-meta hover:text-error transition-colors shrink-0"
+                  aria-label="Remove variable"
+                  @click="removeEnvRow(idx)"
+                >
+                  <UIcon name="i-lucide-x" class="size-3.5" />
+                </button>
+              </div>
+            </div>
+            <button
+              class="mt-2 flex items-center gap-1 text-[12px] text-meta hover:text-body transition-colors"
+              @click="addEnvRow"
+            >
+              <UIcon name="i-lucide-plus" class="size-3.5" />
+              Add variable
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Permissions -->
+      <div class="rounded-xl p-5 space-y-5 bg-card">
+        <div>
+          <h3 class="text-section-title">Permissions</h3>
+          <p class="text-[12px] text-meta mt-1">
+            Control which tools and operations Claude is allowed or blocked from using. Format: <span class="font-mono">Tool</span> or <span class="font-mono">Tool(pattern)</span>.
+          </p>
+        </div>
+
+        <!-- Allow list -->
+        <div class="space-y-2">
+          <div class="flex items-center gap-2">
+            <div class="size-2 rounded-full shrink-0" style="background: var(--success, #22c55e);" />
+            <span class="text-[12px] font-medium text-body">Always allow</span>
+          </div>
+          <div class="ml-4 space-y-1">
+            <div
+              v-for="(rule, idx) in permAllowRules"
+              :key="idx"
+              class="flex items-center justify-between py-1.5 px-3 rounded-lg group"
+              style="background: var(--input-bg);"
+            >
+              <span class="font-mono text-[12px] text-label">{{ rule }}</span>
+              <button
+                class="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1 rounded focus-ring"
+                style="color: var(--error);"
+                @click="removeAllowRule(idx)"
+              >
+                <UIcon name="i-lucide-x" class="size-3" />
+              </button>
+            </div>
+            <div v-if="permAllowRules.length === 0" class="text-[12px] text-meta italic pl-1">No rules — all tools require approval</div>
+          </div>
+          <div class="ml-4 flex gap-2">
+            <input
+              v-model="newAllowRule"
+              class="field-input font-mono text-[12px] flex-1"
+              placeholder="e.g. Bash(git *) or Read"
+              @keydown.enter="addAllowRule"
+            />
+            <UButton label="Add" size="xs" variant="soft" color="success" :disabled="!newAllowRule.trim()" @click="addAllowRule" />
+          </div>
+        </div>
+
+        <!-- Deny list -->
+        <div class="space-y-2">
+          <div class="flex items-center gap-2">
+            <div class="size-2 rounded-full shrink-0" style="background: var(--error, #ef4444);" />
+            <span class="text-[12px] font-medium text-body">Always deny</span>
+          </div>
+          <div class="ml-4 space-y-1">
+            <div
+              v-for="(rule, idx) in permDenyRules"
+              :key="idx"
+              class="flex items-center justify-between py-1.5 px-3 rounded-lg group"
+              style="background: var(--input-bg);"
+            >
+              <span class="font-mono text-[12px] text-label">{{ rule }}</span>
+              <button
+                class="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1 rounded focus-ring"
+                style="color: var(--error);"
+                @click="removeDenyRule(idx)"
+              >
+                <UIcon name="i-lucide-x" class="size-3" />
+              </button>
+            </div>
+            <div v-if="permDenyRules.length === 0" class="text-[12px] text-meta italic pl-1">No rules</div>
+          </div>
+          <div class="ml-4 flex gap-2">
+            <input
+              v-model="newDenyRule"
+              class="field-input font-mono text-[12px] flex-1"
+              placeholder="e.g. Bash(rm -rf *)"
+              @keydown.enter="addDenyRule"
+            />
+            <UButton label="Add" size="xs" variant="soft" color="error" :disabled="!newDenyRule.trim()" @click="addDenyRule" />
           </div>
         </div>
       </div>
@@ -502,6 +859,133 @@ const lineCount = computed(() => rawJson.value.split('\n').length)
           </div>
         </div>
       </div>
+
+      <!-- CLAUDE.md -->
+      <div class="rounded-xl p-5 space-y-4 bg-card">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h3 class="text-section-title">CLAUDE.md</h3>
+            <span
+              v-if="claudeMdExists"
+              class="text-[10px] px-2 py-0.5 rounded-full font-medium"
+              style="background: rgba(34,197,94,0.1); color: var(--success, #22c55e);"
+            >exists</span>
+            <span
+              v-else
+              class="text-[10px] px-2 py-0.5 rounded-full font-medium"
+              style="background: var(--surface-raised); color: var(--text-tertiary);"
+            >not created</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <UButton
+              v-if="claudeMdDirty"
+              label="Save"
+              icon="i-lucide-save"
+              size="xs"
+              :loading="claudeMdSaving"
+              @click="saveClaudeMd"
+            />
+          </div>
+        </div>
+        <p class="text-[12px] text-meta">
+          Global instructions for Claude Code. Loaded automatically at the start of every session from <span class="font-mono">~/.claude/CLAUDE.md</span>.
+        </p>
+
+        <div v-if="claudeMdLoading" class="flex justify-center py-6">
+          <UIcon name="i-lucide-loader-2" class="size-5 animate-spin text-meta" />
+        </div>
+
+        <template v-else>
+          <div v-if="!claudeMdEditing" class="text-center py-6 space-y-3">
+            <UIcon name="i-lucide-file-text" class="size-8 text-meta mx-auto" />
+            <p class="text-[13px] text-label">No global CLAUDE.md yet.</p>
+            <UButton label="Create CLAUDE.md" icon="i-lucide-plus" size="sm" variant="soft" @click="createClaudeMd" />
+          </div>
+
+          <div v-else class="space-y-2">
+            <textarea
+              v-model="claudeMdDraft"
+              class="editor-textarea font-mono text-[12px]"
+              style="min-height: 240px; max-height: 480px; resize: vertical;"
+              spellcheck="false"
+              placeholder="# Project Instructions&#10;&#10;Write instructions for Claude here..."
+            />
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] text-meta font-mono">{{ claudeMdDraft.split('\n').length }} lines · {{ claudeMdDraft.length.toLocaleString() }} chars</span>
+              <div class="flex items-center gap-2">
+                <span v-if="claudeMdDirty" class="text-[11px] text-meta">Unsaved changes</span>
+                <UButton
+                  label="Save"
+                  icon="i-lucide-save"
+                  size="xs"
+                  :loading="claudeMdSaving"
+                  :disabled="!claudeMdDirty"
+                  @click="saveClaudeMd"
+                />
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- MEMORY.md -->
+      <div class="rounded-xl p-5 space-y-4 bg-card">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h3 class="text-section-title">MEMORY.md</h3>
+            <span
+              v-if="memoryMdExists"
+              class="text-[10px] px-2 py-0.5 rounded-full font-medium"
+              style="background: rgba(34,197,94,0.1); color: var(--success, #22c55e);"
+            >exists</span>
+            <span
+              v-else
+              class="text-[10px] px-2 py-0.5 rounded-full font-medium"
+              style="background: var(--surface-raised); color: var(--text-tertiary);"
+            >not created</span>
+          </div>
+        </div>
+        <p class="text-[12px] text-meta">
+          Persistent facts Claude remembers across all sessions. Stored at <span class="font-mono">~/.claude/MEMORY.md</span>.
+        </p>
+
+        <div v-if="memoryMdLoading" class="flex justify-center py-6">
+          <UIcon name="i-lucide-loader-2" class="size-5 animate-spin text-meta" />
+        </div>
+
+        <template v-else>
+          <div v-if="!memoryMdEditing" class="text-center py-6 space-y-3">
+            <UIcon name="i-lucide-brain" class="size-8 text-meta mx-auto" />
+            <p class="text-[13px] text-label">No global MEMORY.md yet.</p>
+            <UButton label="Create MEMORY.md" icon="i-lucide-plus" size="sm" variant="soft" @click="createMemoryMd" />
+          </div>
+
+          <div v-else class="space-y-2">
+            <textarea
+              v-model="memoryMdDraft"
+              class="editor-textarea font-mono text-[12px]"
+              style="min-height: 240px; max-height: 480px; resize: vertical;"
+              spellcheck="false"
+              placeholder="# Memory&#10;&#10;- Fact one&#10;- Fact two"
+            />
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] text-meta font-mono">{{ memoryMdDraft.split('\n').length }} lines · {{ memoryMdDraft.length.toLocaleString() }} chars</span>
+              <div class="flex items-center gap-2">
+                <span v-if="memoryMdDirty" class="text-[11px] text-meta">Unsaved changes</span>
+                <UButton
+                  label="Save"
+                  icon="i-lucide-save"
+                  size="xs"
+                  :loading="memoryMdSaving"
+                  :disabled="!memoryMdDirty"
+                  @click="saveMemoryMd"
+                />
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
     </div>
 
     <!-- Raw JSON editor -->
