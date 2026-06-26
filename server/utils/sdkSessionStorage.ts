@@ -52,6 +52,8 @@ export async function loadSdkSessionMessages(
             const entry = JSON.parse(line)
             // Match messages by sessionId
             if (entry.sessionId === sessionId) {
+              // Skip API error messages (e.g. "Not logged in") and compact summaries
+              if (entry.isApiErrorMessage || entry.isCompactSummary) continue
               messages.push(entry)
             }
           } catch (parseError) {

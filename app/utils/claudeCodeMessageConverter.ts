@@ -151,6 +151,11 @@ export function convertClaudeCodeMessages(messages: ClaudeCodeMessage[]): Displa
       continue
     }
 
+    // Skip API error messages (e.g. "Not logged in") and compact summaries
+    if ((msg as any).isApiErrorMessage || (msg as any).isCompactSummary) {
+      continue
+    }
+
     const content = msg.message?.content
 
     // Handle user messages

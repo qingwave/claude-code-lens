@@ -637,6 +637,8 @@ export async function getClaudeCodeSessionMessages(
           try {
             const entry = JSON.parse(line) as ClaudeCodeMessage
             if (entry.sessionId === sessionId) {
+              // Skip API error messages and compact summaries
+              if ((entry as any).isApiErrorMessage || (entry as any).isCompactSummary) continue
               messages.push(entry)
             }
           } catch {
