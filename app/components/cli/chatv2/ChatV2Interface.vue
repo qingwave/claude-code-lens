@@ -381,6 +381,8 @@ function handleConfigPanelSelected(panel: string) {
   activeConfigPanel.value = panel
   if (panel === 'claude-md') {
     fetchClaudeMd()
+  } else if (panel === 'memory-md') {
+    fetchMemoryMd()
   } else if (panel === 'output-style') {
     fetchOutputStyles()
     fetchConfigDirSettings()
@@ -403,8 +405,16 @@ const selectedOutputStyleName = computed(() => {
 const claudeMdExists = ref(false)
 const claudeMdContent = ref('')
 const claudeMdDraft = ref('')
+const claudeMdEditing = ref(false)
 const isLoadingClaudeMd = ref(false)
 const isSavingClaudeMd = ref(false)
+
+// MEMORY.md state
+const memoryMdExists = ref(false)
+const memoryMdContent = ref('')
+const memoryMdDraft = ref('')
+const isLoadingMemoryMd = ref(false)
+const isSavingMemoryMd = ref(false)
 
 // Project settings for output style
 const configDirSettings = ref<any>({})
@@ -414,13 +424,17 @@ async function fetchClaudeMd() {
   const projectPath = selectedProjectPath.value
   if (!projectPath) return
   isLoadingClaudeMd.value = true
+  claudeMdExists.value = false
+  claudeMdEditing.value = false
+  claudeMdDraft.value = ''
   try {
     const res = await $fetch<{ exists: boolean; content: string }>('/api/projects/claude-md', {
       query: { path: projectPath }
     })
     claudeMdExists.value = res.exists
     claudeMdContent.value = res.content
-    claudeMdDraft.value = res.exists ? res.content : `# CLAUDE.md\n\nProject instructions for Claude Code.\n`
+    claudeMdDraft.value = res.content
+    claudeMdEditing.value = res.exists
   } catch (e) {
     console.error('Failed to fetch CLAUDE.md:', e)
   } finally {
@@ -439,11 +453,51 @@ async function saveClaudeMd() {
     })
     claudeMdContent.value = claudeMdDraft.value
     claudeMdExists.value = true
+    claudeMdEditing.value = true
     toast.add({ title: 'CLAUDE.md saved', color: 'success', duration: 2000 })
   } catch (e: any) {
     toast.add({ title: 'Failed to save CLAUDE.md', description: e.message, color: 'error' })
   } finally {
     isSavingClaudeMd.value = false
+  }
+}
+
+async function fetchMemoryMd() {
+  const projectPath = selectedProjectPath.value
+  if (!projectPath) return
+  isLoadingMemoryMd.value = true
+  memoryMdExists.value = false
+  memoryMdDraft.value = ''
+  try {
+    const res = await $fetch<{ exists: boolean; content: string }>('/api/projects/memory-md', {
+      query: { path: projectPath }
+    })
+    memoryMdExists.value = res.exists
+    memoryMdContent.value = res.content
+    memoryMdDraft.value = res.content
+  } catch (e) {
+    console.error('Failed to fetch MEMORY.md:', e)
+  } finally {
+    isLoadingMemoryMd.value = false
+  }
+}
+
+async function saveMemoryMd() {
+  const projectPath = selectedProjectPath.value
+  if (!projectPath) return
+  isSavingMemoryMd.value = true
+  try {
+    await $fetch('/api/projects/memory-md', {
+      method: 'PUT',
+      body: { path: projectPath, content: memoryMdDraft.value }
+    })
+    memoryMdContent.value = memoryMdDraft.value
+    memoryMdExists.value = true
+    toast.add({ title: 'MEMORY.md saved', color: 'success', duration: 2000 })
+  } catch (e: any) {
+    toast.add({ title: 'Failed to save MEMORY.md', description: e.message, color: 'error' })
+  } finally {
+    isSavingMemoryMd.value = false
   }
 }
 
@@ -1435,12 +1489,12 @@ function handleClosePreview() {
             <UIcon name="i-lucide-arrow-left" class="size-4" style="color: var(--text-secondary);" />
           </button>
           <UIcon
-            :name="activeConfigPanel === 'claude-md' ? 'i-lucide-file-text' : 'i-lucide-palette'"
+            :name="activeConfigPanel === 'claude-md' ? 'i-lucide-file-text' : activeConfigPanel === 'memory-md' ? 'i-lucide-brain' : 'i-lucide-palette'"
             class="size-4"
             style="color: var(--accent);"
           />
           <h3 class="text-[14px] font-semibold" style="color: var(--text-primary);">
-            {{ activeConfigPanel === 'claude-md' ? 'CLAUDE.md' : 'Output Style' }}
+            {{ activeConfigPanel === 'claude-md' ? 'CLAUDE.md' : activeConfigPanel === 'memory-md' ? 'MEMORY.md' : 'Output Style' }}
           </h3>
           <span class="text-[11px] font-mono" style="color: var(--text-tertiary);">
             {{ currentProjectDisplayName || selectedProjectPath }}
@@ -1471,12 +1525,73 @@ function handleClosePreview() {
                 {{ isSavingClaudeMd ? 'Saving...' : 'Save' }}
               </button>
             </div>
+            <div v-if="!claudeMdEditing" class="flex-1 flex items-center justify-center">
+              <div class="text-center space-y-3">
+                <UIcon name="i-lucide-file-text" class="size-8 mx-auto" style="color: var(--text-tertiary);" />
+                <p class="text-[13px]" style="color: var(--text-secondary);">No CLAUDE.md yet.</p>
+                <button
+                  class="px-3 py-1.5 rounded-lg text-[12px] font-medium flex items-center gap-1.5 mx-auto"
+                  style="background: var(--surface-raised); color: var(--text-primary);"
+                  @click="claudeMdDraft = '# Project Instructions\n\n'; claudeMdEditing = true"
+                >
+                  <UIcon name="i-lucide-plus" class="size-3.5" />
+                  Create CLAUDE.md
+                </button>
+              </div>
+            </div>
             <InstructionEditor
+              v-if="claudeMdEditing"
               v-model="claudeMdDraft"
               class="flex-1 min-h-0"
               agent-name="CLAUDE.md"
               :agent-description="currentProjectDisplayName || 'Project instructions'"
               placeholder="# CLAUDE.md&#10;&#10;Write project instructions here..."
+            />
+          </template>
+        </div>
+
+        <!-- MEMORY.md Panel -->
+        <div v-else-if="activeConfigPanel === 'memory-md'" class="flex-1 flex flex-col min-h-0 min-w-0">
+          <div v-if="isLoadingMemoryMd" class="flex-1 flex items-center justify-center">
+            <UIcon name="i-lucide-loader-2" class="size-6 animate-spin" style="color: var(--text-secondary);" />
+          </div>
+          <template v-else>
+            <div class="shrink-0 flex items-center justify-between px-4 py-2 border-b" style="border-color: var(--border-subtle);">
+              <p class="text-[12px]" style="color: var(--text-secondary);">
+                Persistent facts Claude remembers across all sessions in this project.
+              </p>
+              <button
+                class="px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all flex items-center gap-2"
+                :style="{ background: 'var(--accent)', color: 'white', opacity: isSavingMemoryMd ? 0.7 : 1 }"
+                :disabled="isSavingMemoryMd"
+                @click="saveMemoryMd"
+              >
+                <UIcon v-if="isSavingMemoryMd" name="i-lucide-loader-2" class="size-3.5 animate-spin" />
+                <UIcon v-else name="i-lucide-save" class="size-3.5" />
+                {{ isSavingMemoryMd ? 'Saving...' : 'Save' }}
+              </button>
+            </div>
+            <div v-if="!memoryMdExists && !memoryMdDraft" class="flex-1 flex items-center justify-center">
+              <div class="text-center space-y-3">
+                <UIcon name="i-lucide-brain" class="size-8 mx-auto" style="color: var(--text-tertiary);" />
+                <p class="text-[13px]" style="color: var(--text-secondary);">No MEMORY.md yet.</p>
+                <button
+                  class="px-3 py-1.5 rounded-lg text-[12px] font-medium flex items-center gap-1.5 mx-auto"
+                  style="background: var(--surface-raised); color: var(--text-primary);"
+                  @click="memoryMdDraft = '# Memory\n\n- '"
+                >
+                  <UIcon name="i-lucide-plus" class="size-3.5" />
+                  Create MEMORY.md
+                </button>
+              </div>
+            </div>
+            <InstructionEditor
+              v-else
+              v-model="memoryMdDraft"
+              class="flex-1 min-h-0"
+              agent-name="MEMORY.md"
+              :agent-description="currentProjectDisplayName || 'Project memory'"
+              placeholder="# Memory&#10;&#10;- Fact one&#10;- Fact two"
             />
           </template>
         </div>
