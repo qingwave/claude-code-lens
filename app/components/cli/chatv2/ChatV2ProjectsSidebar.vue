@@ -71,9 +71,17 @@ const projectState = reactive<Record<string, {
   tab: 'sessions' | 'artifacts'
 }>>({})
 
-function ensureProjectState(name: string) {
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000
+
+function isProjectRecent(lastActivity?: string): boolean {
+  if (!lastActivity) return false
+  return Date.now() - new Date(lastActivity).getTime() < THREE_DAYS_MS
+}
+
+function ensureProjectState(name: string, lastActivity?: string) {
   if (!projectState[name]) {
-    projectState[name] = { sessions: [], loading: false, hasMore: false, expanded: true, sessionsExpanded: false, tab: 'sessions' }
+    const expanded = lastActivity !== undefined ? isProjectRecent(lastActivity) : true
+    projectState[name] = { sessions: [], loading: false, hasMore: false, expanded, sessionsExpanded: false, tab: 'sessions' }
   }
 }
 
@@ -108,7 +116,7 @@ async function loadMoreProjectSessions(projectName: string) {
 // When projects load, init state and fetch sessions for each
 watch(projects, async (list) => {
   for (const p of list) {
-    ensureProjectState(p.name)
+    ensureProjectState(p.name, p.lastActivity)
     if ((projectState[p.name]?.sessions.length ?? 0) === 0) {
       await loadProjectSessions(p.name)
     }
@@ -381,7 +389,7 @@ onMounted(async () => {
         </button>
 
         <div class="flex-1 min-w-0">
-          <h3 class="text-[13px] font-semibold leading-tight" style="color: var(--text-primary);">
+          <h3 class="text-[13px] font-semibold leading-tight" style="color: var(--text-primary); font-family: var(--font-display);">
             {{ configProject
               ? (projects.find(p => p.name === configProject)?.displayName || 'Settings')
               : 'Claude Code' }}
