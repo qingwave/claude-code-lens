@@ -13,24 +13,27 @@ const emit = defineEmits<{
 // ── Terminal ─────────────────────────────────────────────────────────────────
 
 const containerRef = ref<HTMLElement | null>(null)
-const { isConnected, sessionId, shellName, error, mount, unmount, connect, disconnect, focus, clear, syncSize } = useShellTerminal()
+const { isConnected, shellName, error, mount, unmount, connect, disconnect, focus, clear, syncSize } = useShellTerminal()
 
-// Mount xterm when the container becomes visible
-watch(containerRef, (el) => {
-  if (!el) { unmount(); return }
-  const isDark = props.dark !== false
-  mount(el, isDark)
+// Mount only once when containerRef is first assigned (DOM ready)
+// The actual terminal init happens on first open() call
+let mounted = false
+
+function initTerminal() {
+  if (mounted || !containerRef.value) return
+  mounted = true
+  mount(containerRef.value, props.dark !== false)
   connect({ workingDir: props.workingDir })
-  nextTick(() => syncSize(el, false))
-})
+}
 
 watch(() => props.workingDir, (dir) => {
-  if (!isConnected.value) return
-  // Reconnect in new directory
+  if (!isConnected.value || !containerRef.value) return
   disconnect()
   unmount()
+  mounted = false
   nextTick(() => {
     if (containerRef.value) {
+      mounted = true
       mount(containerRef.value, props.dark !== false)
       connect({ workingDir: dir })
     }
@@ -83,11 +86,16 @@ const isOpen = ref(false)
 function toggle() {
   isOpen.value = !isOpen.value
   if (isOpen.value) {
+    // Init on first open so container has real dimensions
     nextTick(() => {
-      if (containerRef.value) {
-        syncSize(containerRef.value, true)
-        focus()
-      }
+      initTerminal()
+      // Give the CSS transition time to finish, then sync size
+      setTimeout(() => {
+        if (containerRef.value) {
+          syncSize(containerRef.value, true)
+          focus()
+        }
+      }, 220)
     })
   }
 }
@@ -98,7 +106,7 @@ defineExpose({ toggle, focus, clear, isOpen })
 <template>
   <div
     class="shrink-0 flex flex-col border-t select-none"
-    style="border-color: var(--border-subtle); background: var(--surface-sunken);"
+    style="border-color: var(--border-subtle);"
   >
     <!-- Drag handle — sits above the header, only visible when open -->
     <div
@@ -110,7 +118,7 @@ defineExpose({ toggle, focus, clear, isOpen })
 
     <!-- Header bar -->
     <div
-      class="shrink-0 h-9 flex items-center justify-between px-3 cursor-pointer select-none"
+      class="shrink-0 h-9 flex items-center justify-between px-3 cursor-pointer"
       style="background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);"
       @click="toggle"
     >
@@ -128,7 +136,6 @@ defineExpose({ toggle, focus, clear, isOpen })
       </div>
 
       <div class="flex items-center gap-1">
-        <!-- Clear button -->
         <button
           v-if="isOpen"
           class="p-1 rounded hover-bg transition-all"
@@ -138,7 +145,6 @@ defineExpose({ toggle, focus, clear, isOpen })
         >
           <UIcon name="i-lucide-eraser" class="size-3.5" />
         </button>
-        <!-- Reconnect button -->
         <button
           v-if="isOpen && !isConnected"
           class="p-1 rounded hover-bg transition-all"
@@ -148,27 +154,25 @@ defineExpose({ toggle, focus, clear, isOpen })
         >
           <UIcon name="i-lucide-refresh-cw" class="size-3.5" />
         </button>
-        <!-- Chevron -->
         <UIcon
           :name="isOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
-          class="size-3.5 transition-transform"
+          class="size-3.5"
           style="color: var(--text-tertiary);"
         />
       </div>
     </div>
 
-    <!-- Terminal body — rendered but hidden when collapsed to preserve xterm state -->
+    <!-- Terminal body -->
     <div
+      class="flex overflow-hidden"
       :style="{
         height: isOpen ? `${height}px` : '0px',
-        overflow: 'hidden',
         transition: isDragging ? 'none' : 'height 0.2s ease',
       }"
     >
       <div
         ref="containerRef"
-        class="size-full px-2 py-1 overflow-hidden"
-        style="background: var(--surface-sunken);"
+        class="shell-terminal min-h-0 min-w-0 flex-1 overflow-hidden"
       />
     </div>
 
@@ -182,3 +186,4 @@ defineExpose({ toggle, focus, clear, isOpen })
     </div>
   </div>
 </template>
+

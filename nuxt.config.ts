@@ -5,7 +5,7 @@ export default defineNuxtConfig({
 
   future: { compatibilityVersion: 4 },
 
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/main.css', '@xterm/xterm/css/xterm.css'],
 
   compatibilityDate: '2025-01-15',
 

@@ -1,6 +1,24 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+/* ── xterm.js terminal overrides ── */
+.shell-terminal,
+.shell-terminal .xterm,
+.shell-terminal .xterm-scrollable-element,
+.shell-terminal .xterm-viewport,
+.shell-terminal .xterm-screen,
+.shell-terminal .xterm-helpers,
+.shell-terminal .xterm-helper-textarea,
+.shell-terminal .composition-view {
+  background: transparent !important;
+  background-color: transparent !important;
+  max-width: 100%;
+}
+
+.shell-terminal .xterm-screen canvas {
+  background: transparent !important;
+}
+
 @theme static {
   --font-display: "Clash Display", "Geist Sans", system-ui, sans-serif;
   --font-sans: "Geist Sans", "Geist", system-ui, sans-serif;
