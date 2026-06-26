@@ -302,7 +302,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Bottom hints -->
+    <!-- Bottom hints + slot for controls -->
     <div class="flex flex-wrap items-center justify-between mt-1.5 px-1 gap-2">
       <div class="flex flex-wrap items-center gap-3 text-[10px]" style="color: var(--text-tertiary);">
         <span class="flex items-center gap-1">
@@ -315,19 +315,15 @@ onMounted(async () => {
         </span>
       </div>
 
-      <div class="flex items-center gap-2">
-        <!-- Character counter -->
+      <div class="flex items-center gap-1">
+        <slot name="controls" />
+
         <span
           v-if="localValue.length > 0"
-          class="text-[10px] font-mono"
-          :style="{
-            color: localValue.length > 10000 ? '#ef4444' : 'var(--text-tertiary)',
-          }"
-        >
-          {{ localValue.length.toLocaleString() }}
-        </span>
+          class="text-[10px] font-mono px-1"
+          :style="{ color: localValue.length > 10000 ? '#ef4444' : 'var(--text-tertiary)' }"
+        >{{ localValue.length.toLocaleString() }}</span>
 
-        <!-- Streaming indicator -->
         <span
           v-if="isStreaming"
           class="text-[10px] flex items-center gap-1"

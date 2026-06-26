@@ -340,6 +340,14 @@ const effortOptions: { value: EffortLevel; label: string; icon: string; descript
 const currentEffort = computed(() => effortOptions.find(o => o.value === effortLevel.value)!)
 const effortMenuRef = ref<HTMLElement | null>(null)
 
+const contextUsageColorHex = computed(() => {
+  const c = contextMonitor.contextUsageColor.value
+  if (c === 'red') return '#ef4444'
+  if (c === 'orange') return '#f97316'
+  if (c === 'yellow') return '#eab308'
+  return '#22c55e'
+})
+
 function handleEffortClickOutside(e: MouseEvent) {
   if (effortMenuRef.value && !effortMenuRef.value.contains(e.target as Node)) {
     showEffortMenu.value = false
@@ -1890,148 +1898,18 @@ function handleClosePreview() {
                 @open-file="handleOpenFile"
               />
 
-              <!-- Spacer to ensure last messages can scroll above the blurry toggle -->
-              <div class="h-12 shrink-0" />
             </template>
           </div>
         </div>
-
-        <!-- Floating-style Controls (Thinking + Context) -->
-        <div 
-          v-if="(isLiveChat || currentSessionId || (viewMode === 'history' && urlSessionId)) && !isLoadingHistoryWithDelay && !isCreatingSession"
-          class="absolute bottom-0 left-0 right-0 flex justify-center items-center gap-3 py-4 z-10"
-          style="background: linear-gradient(to top, var(--surface-base) 20%, transparent 100%); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);"
-        >
-          <!-- Model Selector -->
-          <ChatV2ModelSelector
-            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
-            v-model="selectedModel"
-            :options="MODEL_OPTIONS_CHAT"
-            class="shadow-lg border rounded-full bg-overlay backdrop-blur-md"
-            style="border-color: var(--border-subtle);"
-          />
-
-          <!-- Permission Mode Selector -->
-          <ChatV2PermissionModeSelector
-            v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && currentSessionId)"
-            v-model="selectedPermissionMode"
-            :options="permissionModeOptions"
-            class="shadow-lg border rounded-full bg-overlay backdrop-blur-md"
-            style="border-color: var(--border-subtle);"
-          />
-
-          <!-- Effort Level Selector -->
-          <div ref="effortMenuRef" class="relative">
-            <button
-              class="flex items-center justify-center p-2 rounded-full transition-all shadow-lg border backdrop-blur-md"
-              :style="{
-                background: `color-mix(in srgb, ${currentEffort.color} 15%, var(--surface-overlay))`,
-                color: currentEffort.color,
-                borderColor: `color-mix(in srgb, ${currentEffort.color} 40%, transparent)`,
-                boxShadow: `0 4px 12px color-mix(in srgb, ${currentEffort.color} 20%, transparent)`,
-              }"
-              :title="`Effort: ${currentEffort.label}`"
-              @click="showEffortMenu = !showEffortMenu"
-            >
-              <UIcon
-                :name="currentEffort.icon"
-                class="size-4"
-              />
-            </button>
-
-            <!-- Effort Menu Popover -->
-            <Transition
-              enter-active-class="transition duration-150 ease-out"
-              enter-from-class="opacity-0 translate-y-2 scale-95"
-              enter-to-class="opacity-100 translate-y-0 scale-100"
-              leave-active-class="transition duration-100 ease-in"
-              leave-from-class="opacity-100 translate-y-0 scale-100"
-              leave-to-class="opacity-0 translate-y-2 scale-95"
-            >
-              <div
-                v-if="showEffortMenu"
-                class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 rounded-xl border shadow-xl backdrop-blur-md overflow-hidden"
-                style="background: var(--surface-overlay); border-color: var(--border-subtle);"
-              >
-                <div class="p-1.5">
-                  <button
-                    v-for="option in effortOptions"
-                    :key="option.value"
-                    class="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left"
-                    :style="{
-                      background: effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'transparent',
-                      color: effortLevel === option.value ? option.color : 'var(--text-primary)',
-                    }"
-                    @mouseenter="($event.currentTarget as HTMLElement).style.background = effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'color-mix(in srgb, var(--text-primary) 5%, transparent)'"
-                    @mouseleave="($event.currentTarget as HTMLElement).style.background = effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'transparent'"
-                    @click="effortLevel = option.value; showEffortMenu = false"
-                  >
-                    <UIcon :name="option.icon" class="size-4 shrink-0" :style="{ color: option.color }" />
-                    <div class="min-w-0">
-                      <div class="text-sm font-medium">{{ option.label }}</div>
-                      <div class="text-xs truncate" style="color: var(--text-tertiary);">{{ option.description }}</div>
-                    </div>
-                    <UIcon v-if="effortLevel === option.value" name="i-lucide-check" class="size-3.5 ml-auto shrink-0" :style="{ color: option.color }" />
-                  </button>
-                </div>
-              </div>
-            </Transition>
-          </div>
-
-          <!-- Context Usage Circle -->
-          <UTooltip :text="`Context: ${contextMonitor.contextUsageText.value} - Click for details`" :popper="{ placement: 'top' }">
-            <div 
-              class="flex items-center justify-center size-8 sm:size-9 rounded-full shadow-lg border backdrop-blur-md transition-all cursor-pointer hover:scale-105 active:scale-95"
-              style="background: var(--surface-overlay); border-color: var(--border-subtle);"
-              @click="openRightTab('context')"
-            >
-              <div class="relative size-6">
-                <!-- SVG Progress Circle -->
-                <svg class="size-full -rotate-90" viewBox="0 0 36 36">
-                  <!-- Background Circle -->
-                  <circle
-                    cx="18" cy="18" r="16"
-                    fill="none"
-                    class="stroke-current"
-                    style="color: var(--border-subtle); stroke-width: 3;"
-                  />
-                  <!-- Progress Circle -->
-                  <circle
-                    cx="18" cy="18" r="16"
-                    fill="none"
-                    class="stroke-current transition-all duration-500"
-                    stroke-linecap="round"
-                    :stroke-dasharray="`${contextMonitor.metrics.value.contextWindow.percentage}, 100`"
-                    :style="{
-                      strokeWidth: 3,
-                      color: contextMonitor.contextUsageColor.value === 'red' ? '#ef4444' : 
-                             contextMonitor.contextUsageColor.value === 'orange' ? '#f97316' : 
-                             contextMonitor.contextUsageColor.value === 'yellow' ? '#eab308' : '#22c55e'
-                    }"
-                  />
-                </svg>
-                <!-- Percentage Text -->
-                <div class="absolute inset-0 flex items-center justify-center">
-                  <span class="text-[8px] font-bold" style="color: var(--text-secondary);">
-                    {{ Math.round(contextMonitor.metrics.value.contextWindow.percentage) }}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          </UTooltip>
-        </div>
       </div>
 
-      <!-- Input -->
-      <div 
+      <!-- Input dock: input box + controls bar -->
+      <div
         v-if="(isLiveChat || currentSessionId || (viewMode === 'history' && urlSessionId)) && !isLoadingHistoryWithDelay && !isCreatingSession"
-        class="shrink-0 border-t" 
+        class="shrink-0 border-t"
         style="border-color: var(--border-subtle); background: var(--surface-base);"
       >
-
-
-        <!-- Chat Input - Works in both modes -->
-        <!-- No longer requires pre-created session - SDK will create session on first message -->
+        <!-- Chat Input with controls in the hints slot -->
         <ChatV2Input
           v-model="inputText"
           :disabled="isStreaming || isCreatingSession"
@@ -2041,7 +1919,84 @@ function handleClosePreview() {
           @abort="abort()"
           @focus="isInputFocused = true"
           @blur="isInputFocused = false"
-        />
+        >
+          <template #controls>
+            <!-- Model Selector -->
+            <ChatV2ModelSelector
+              v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
+              v-model="selectedModel"
+              :options="MODEL_OPTIONS_CHAT"
+            />
+
+            <!-- Permission Mode Selector -->
+            <ChatV2PermissionModeSelector
+              v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && currentSessionId)"
+              v-model="selectedPermissionMode"
+              :options="permissionModeOptions"
+            />
+
+            <!-- Effort Level Selector -->
+            <div ref="effortMenuRef" class="relative">
+              <button
+                class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors hover:bg-[var(--surface-hover)]"
+                style="color: var(--text-secondary);"
+                :title="`Effort: ${currentEffort.label}`"
+                @click="showEffortMenu = !showEffortMenu"
+              >
+                <UIcon :name="currentEffort.icon" class="size-3.5 shrink-0" :style="{ color: currentEffort.color }" />
+                <span>{{ currentEffort.label }}</span>
+              </button>
+
+              <Transition
+                enter-active-class="transition duration-150 ease-out"
+                enter-from-class="opacity-0 translate-y-2 scale-95"
+                enter-to-class="opacity-100 translate-y-0 scale-100"
+                leave-active-class="transition duration-100 ease-in"
+                leave-from-class="opacity-100 translate-y-0 scale-100"
+                leave-to-class="opacity-0 translate-y-2 scale-95"
+              >
+                <div
+                  v-if="showEffortMenu"
+                  class="absolute bottom-full right-0 mb-1 w-56 rounded-xl border shadow-xl backdrop-blur-md overflow-hidden z-[200]"
+                  style="background: var(--surface-overlay); border-color: var(--border-subtle);"
+                >
+                  <div class="p-1.5">
+                    <button
+                      v-for="option in effortOptions"
+                      :key="option.value"
+                      class="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left"
+                      :style="{
+                        background: effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'transparent',
+                        color: effortLevel === option.value ? option.color : 'var(--text-primary)',
+                      }"
+                      @mouseenter="($event.currentTarget as HTMLElement).style.background = effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'color-mix(in srgb, var(--text-primary) 5%, transparent)'"
+                      @mouseleave="($event.currentTarget as HTMLElement).style.background = effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'transparent'"
+                      @click="effortLevel = option.value; showEffortMenu = false"
+                    >
+                      <UIcon :name="option.icon" class="size-4 shrink-0" :style="{ color: option.color }" />
+                      <div class="min-w-0">
+                        <div class="text-sm font-medium">{{ option.label }}</div>
+                        <div class="text-xs truncate" style="color: var(--text-tertiary);">{{ option.description }}</div>
+                      </div>
+                      <UIcon v-if="effortLevel === option.value" name="i-lucide-check" class="size-3.5 ml-auto shrink-0" :style="{ color: option.color }" />
+                    </button>
+                  </div>
+                </div>
+              </Transition>
+            </div>
+
+            <!-- Context Usage -->
+            <button
+              class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors hover:bg-[var(--surface-hover)]"
+              style="color: var(--text-secondary);"
+              :title="`Context: ${contextMonitor.contextUsageText.value} — click for details`"
+              @click="openRightTab('context')"
+            >
+              <UIcon name="i-lucide-activity" class="size-3.5 shrink-0" :style="{ color: contextUsageColorHex }" />
+              <span :style="{ color: contextUsageColorHex }">{{ Math.round(contextMonitor.metrics.value.contextWindow.percentage) }}%</span>
+            </button>
+          </template>
+        </ChatV2Input>
       </div>
 
       </template>
