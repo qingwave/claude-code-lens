@@ -8,6 +8,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'permissionRespond', permissionId: string, decision: 'allow' | 'deny', remember?: boolean, updatedInput?: any): void
+  (e: 'promptRespond', promptId: string, value: string): void
+  (e: 'resend', content: string, images?: string[]): void
   (e: 'openFile', filePath: string): void
 }>()
 
@@ -19,6 +21,24 @@ async function copyUserMessage(messageId: string, content: string) {
     await navigator.clipboard.writeText(content)
     copiedMessageId.value = messageId
     setTimeout(() => { copiedMessageId.value = null }, 2000)
+  } catch (e) {
+    console.error('Failed to copy:', e)
+  }
+}
+
+// Track which assistant group is showing "copied" state
+const copiedGroupId = ref<string | null>(null)
+
+async function copyAssistantGroup(groupId: string, messages: DisplayChatMessage[]) {
+  const text = messages
+    .filter(m => m.kind === 'text' && m.content)
+    .map(m => m.content)
+    .join('\n\n')
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    copiedGroupId.value = groupId
+    setTimeout(() => { copiedGroupId.value = null }, 2000)
   } catch (e) {
     console.error('Failed to copy:', e)
   }
@@ -68,8 +88,16 @@ function handlePermissionRespond(permissionId: string, decision: 'allow' | 'deny
   emit('permissionRespond', permissionId, decision, remember, updatedInput)
 }
 
+function handlePromptRespond(promptId: string, value: string) {
+  emit('promptRespond', promptId, value)
+}
+
 function handleOpenFile(filePath: string) {
   emit('openFile', filePath)
+}
+
+function handleResend(content: string, images?: string[]) {
+  emit('resend', content, images)
 }
 </script>
 
@@ -83,40 +111,52 @@ function handleOpenFile(filePath: string) {
     >
       <!-- User Message Group -->
       <div v-if="group.role === 'user'" class="flex justify-end min-w-0">
-        <div class="flex items-start gap-2 md:gap-3 max-w-[95%] md:max-w-[85%] min-w-0">
+        <div class="group flex items-start gap-2 md:gap-3 max-w-[95%] md:max-w-[85%] min-w-0">
           <div class="flex flex-col items-end gap-1.5 min-w-0">
             <!-- All user messages in this group -->
             <div
               v-for="(msg, idx) in group.messages"
               :key="msg.id"
-              class="group relative px-3 md:px-4 py-2 md:py-2.5 min-w-0"
-              :class="idx === 0 ? 'rounded-2xl rounded-tr-md' : 'rounded-2xl rounded-r-md'"
-              style="background: var(--accent); color: white;"
+              class="min-w-0"
             >
-              <div v-if="msg.images && msg.images.length > 0" class="flex flex-wrap gap-2 mb-2">
-                <img v-for="(img, i) in msg.images" :key="i" :src="img" class="max-w-[160px] md:max-w-[200px] max-h-[160px] md:max-h-[200px] rounded-lg object-contain bg-white/10" />
-              </div>
-              <div v-if="msg.content" class="text-[12px] md:text-[13px] whitespace-pre-wrap break-words overflow-wrap-anywhere max-w-full" :class="{ 'pb-5': msg.content }">{{ msg.content.trim() }}</div>
-
-              <!-- Copy button - inside bubble, bottom right, show on hover -->
-              <button
-                v-if="msg.content"
-                class="absolute bottom-1.5 right-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                style="background: rgba(255, 255, 255, 0.15);"
-                title="Copy to clipboard"
-                @click="copyUserMessage(msg.id, msg.content!)"
+              <div
+                class="px-3 md:px-4 py-2 md:py-2.5 min-w-0"
+                :class="idx === 0 ? 'rounded-2xl rounded-tr-md' : 'rounded-2xl rounded-r-md'"
+                style="background: var(--accent); color: white;"
               >
-                <UIcon
-                  :name="copiedMessageId === msg.id ? 'i-lucide-check' : 'i-lucide-copy'"
-                  class="size-3"
-                  :style="{ color: copiedMessageId === msg.id ? '#86efac' : 'rgba(255,255,255,0.7)' }"
-                />
-              </button>
+                <div v-if="msg.images && msg.images.length > 0" class="flex flex-wrap gap-2 mb-2">
+                  <img v-for="(img, i) in msg.images" :key="i" :src="img" class="max-w-[160px] md:max-w-[200px] max-h-[160px] md:max-h-[200px] rounded-lg object-contain bg-white/10" />
+                </div>
+                <div v-if="msg.content" class="text-[12px] md:text-[13px] whitespace-pre-wrap break-words overflow-wrap-anywhere max-w-full">{{ msg.content.trim() }}</div>
+              </div>
             </div>
-            <!-- Single timestamp for the group -->
+
+            <!-- Timestamp + copy + resend buttons on same row -->
             <ClientOnly>
-              <div class="text-[9px] md:text-[10px] px-1" style="color: var(--text-tertiary);">
-                {{ new Date(group.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+              <div class="flex items-center gap-2 px-1">
+                <template v-if="group.messages.at(-1)?.content">
+                  <button
+                    class="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Resend message"
+                    @click="handleResend(group.messages.at(-1)!.content!, group.messages.at(-1)!.images)"
+                  >
+                    <UIcon name="i-lucide-rotate-ccw" class="size-3" style="color: var(--text-tertiary);" />
+                  </button>
+                  <button
+                    class="p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Copy to clipboard"
+                    @click="copyUserMessage(group.messages.at(-1)!.id, group.messages.at(-1)!.content!)"
+                  >
+                    <UIcon
+                      :name="copiedMessageId === group.messages.at(-1)!.id ? 'i-lucide-check' : 'i-lucide-copy'"
+                      class="size-3"
+                      :style="{ color: copiedMessageId === group.messages.at(-1)!.id ? '#22c55e' : 'var(--text-tertiary)' }"
+                    />
+                  </button>
+                </template>
+                <span class="text-[9px] md:text-[10px]" style="color: var(--text-tertiary);">
+                  {{ new Date(group.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+                </span>
               </div>
             </ClientOnly>
           </div>
@@ -144,13 +184,25 @@ function handleOpenFile(filePath: string) {
 
         <div class="flex-1 min-w-0 overflow-wrap-anywhere">
           <!-- Claude Header -->
-          <div class="flex items-center gap-2 mb-1.5 md:mb-2">
+          <div class="group/header flex items-center gap-2 mb-1.5 md:mb-2">
             <span class="text-[12px] md:text-[13px] font-semibold" style="color: var(--text-primary);">Claude</span>
             <ClientOnly>
               <span class="text-[9px] md:text-[10px]" style="color: var(--text-tertiary);">
                 {{ new Date(group.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
               </span>
             </ClientOnly>
+            <button
+              v-if="group.messages.some(m => m.kind === 'text' && m.content)"
+              class="p-0.5 rounded opacity-0 group-hover/header:opacity-100 transition-opacity"
+              title="Copy response"
+              @click="copyAssistantGroup(group.id, group.messages)"
+            >
+              <UIcon
+                :name="copiedGroupId === group.id ? 'i-lucide-check' : 'i-lucide-copy'"
+                class="size-3"
+                :style="{ color: copiedGroupId === group.id ? '#22c55e' : 'var(--text-tertiary)' }"
+              />
+            </button>
           </div>
 
           <!-- Messages in this group -->
@@ -161,6 +213,7 @@ function handleOpenFile(filePath: string) {
               :message="message"
               :show-timestamp="false"
               @permission-respond="handlePermissionRespond"
+              @prompt-respond="handlePromptRespond"
               @open-file="handleOpenFile"
             />
           </div>
