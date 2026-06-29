@@ -201,7 +201,7 @@ const activityItems = computed(() => [
   },
   {
     key: "memoryFiles",
-    to: null,
+    to: "/project-artifacts",
     count: animatedActivity.memoryFiles,
     label: "Memory Files",
     icon: "i-lucide-brain",

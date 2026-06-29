@@ -1,5 +1,6 @@
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import { randomUUID } from 'node:crypto'
+import { homedir } from 'node:os'
 import fs from 'node:fs/promises'
 import { normalizeSDKMessage } from './messageNormalizer'
 import { resolveClaudePath } from './claudeDir'
@@ -60,7 +61,7 @@ export async function queryClaudeChat(
   try {
     // Prepare SDK options (following claudecodeui pattern)
     const sdkOptions: any = {
-      cwd: options.workingDir || process.cwd(),
+      cwd: options.workingDir || homedir(),
       permissionMode: 'bypassPermissions',
       allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'],
       maxTurns: 10,
