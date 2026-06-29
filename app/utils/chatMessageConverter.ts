@@ -249,17 +249,32 @@ function convertSingleMessage(
 
     case 'task_notification':
       const task: TaskProgress = {
-        id: msg.id,
-        label: msg.content || 'Running task...',
+        id: msg.metadata?.taskId || msg.id,
+        label: msg.metadata?.description || msg.content || 'Running task...',
         status: (msg.metadata?.status as TaskProgress['status']) || 'running',
         progress: msg.metadata?.progress as number | undefined,
         message: msg.metadata?.message as string | undefined,
+        description: msg.metadata?.description as string | undefined,
+        lastToolName: msg.metadata?.lastToolName as string | undefined,
+        subagentType: msg.metadata?.subagentType as string | undefined,
+        totalTokens: msg.metadata?.totalTokens as number | undefined,
+        toolUses: msg.metadata?.toolUses as number | undefined,
+        durationMs: msg.metadata?.durationMs as number | undefined,
+        summary: msg.metadata?.summary as string | undefined,
       }
       return {
         ...base,
         kind: 'task_notification',
         taskProgress: task,
         content: msg.content,
+      } as DisplayChatMessage
+
+    case 'informational':
+      return {
+        ...base,
+        kind: 'informational',
+        content: msg.content,
+        informationalLevel: (msg.metadata?.level as DisplayChatMessage['informationalLevel']) || 'info',
       } as DisplayChatMessage
 
     case 'interactive_prompt':

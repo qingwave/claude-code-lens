@@ -96,7 +96,7 @@ function handleOpenFile(filePath: string) {
               <div v-if="msg.images && msg.images.length > 0" class="flex flex-wrap gap-2 mb-2">
                 <img v-for="(img, i) in msg.images" :key="i" :src="img" class="max-w-[160px] md:max-w-[200px] max-h-[160px] md:max-h-[200px] rounded-lg object-contain bg-white/10" />
               </div>
-              <div v-if="msg.content" class="text-[12px] md:text-[13px] whitespace-pre-wrap break-words overflow-wrap-anywhere max-w-full" :class="{ 'pb-5': msg.content }">{{ msg.content }}</div>
+              <div v-if="msg.content" class="text-[12px] md:text-[13px] whitespace-pre-wrap break-words overflow-wrap-anywhere max-w-full" :class="{ 'pb-5': msg.content }">{{ msg.content.trim() }}</div>
 
               <!-- Copy button - inside bubble, bottom right, show on hover -->
               <button

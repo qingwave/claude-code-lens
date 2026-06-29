@@ -422,6 +422,7 @@ export type NormalizedMessageKind =
   | 'permission_cancelled'
   | 'interactive_prompt'
   | 'task_notification'
+  | 'informational'
 
 export interface NormalizedMessage {
   kind: NormalizedMessageKind
@@ -498,14 +499,23 @@ export interface DisplayChatMessage {
   isStreaming?: boolean
   resolvedDecision?: 'allow' | 'deny'
   resolvedAnswer?: string
+  // informational
+  informationalLevel?: 'info' | 'notice' | 'suggestion' | 'warning'
 }
 
 export interface TaskProgress {
   id: string
   label: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'stopped' | 'killed' | 'paused'
   progress?: number
   message?: string
+  description?: string
+  lastToolName?: string
+  subagentType?: string
+  totalTokens?: number
+  toolUses?: number
+  durationMs?: number
+  summary?: string
 }
 
 export interface InteractivePrompt {

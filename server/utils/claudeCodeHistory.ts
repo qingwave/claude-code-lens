@@ -476,9 +476,18 @@ async function parseJsonlSessions(filePath: string): Promise<{
               if (typeof content === 'string') {
                 textContent = content
               } else if (Array.isArray(content)) {
-                // Extract text from content array
-                const textPart = content.find(c => c.type === 'text' && c.text)
+                // Extract first text block that isn't a system injection
+                const systemPrefixes = ['<command-name>', '<command-message>', '<command-args>', '<local-command', '<system-reminder>', 'Caveat:']
+                const textPart = content.find(c =>
+                  c.type === 'text' && c.text &&
+                  !systemPrefixes.some(p => (c.text as string).trimStart().startsWith(p))
+                )
                 textContent = textPart?.text || ''
+              }
+              // Skip if it's a system-injected message
+              const systemPrefixes = ['<command-name>', '<command-message>', '<command-args>', '<local-command', '<system-reminder>', 'Caveat:']
+              if (systemPrefixes.some(p => textContent.trimStart().startsWith(p))) {
+                textContent = ''
               }
               if (textContent) {
                 // Truncate to reasonable length for display

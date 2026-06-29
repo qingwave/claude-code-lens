@@ -580,6 +580,28 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
       return { bg: 'var(--surface-raised)', color: 'var(--text-tertiary)', label: 'pending' }
   }
 }
+
+function informationalIcon(level?: string): string {
+  switch (level) {
+    case 'warning': return 'i-lucide-alert-triangle'
+    case 'suggestion': return 'i-lucide-lightbulb'
+    case 'notice': return 'i-lucide-info'
+    default: return 'i-lucide-message-circle'
+  }
+}
+
+function informationalStyle(level?: string): Record<string, string> {
+  switch (level) {
+    case 'warning':
+      return { background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', color: '#f59e0b' }
+    case 'suggestion':
+      return { background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', color: '#8b5cf6' }
+    case 'notice':
+      return { background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.15)', color: '#6366f1' }
+    default: // 'info'
+      return { background: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }
+  }
+}
 </script>
 
 <template>
@@ -590,7 +612,7 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
         <img v-for="(img, i) in message.images" :key="i" :src="img" class="max-w-[200px] max-h-[200px] rounded object-contain border" style="border-color: var(--border-subtle);" />
       </div>
       <div v-if="message.content" class="text-[13px] whitespace-pre-wrap break-words" style="color: var(--text-primary);">
-        {{ message.content }}
+        {{ message.content.trim() }}
       </div>
     </template>
 
@@ -1311,31 +1333,70 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
 
     <!-- Task Notification -->
     <template v-else-if="message.kind === 'task_notification' && message.taskProgress">
-      <div class="flex items-center gap-2 py-1">
+      <div
+        class="flex items-start gap-2.5 px-3 py-2 rounded-lg text-[12px]"
+        :style="{
+          background: message.taskProgress.status === 'completed' ? 'rgba(34,197,94,0.07)'
+            : message.taskProgress.status === 'failed' ? 'rgba(239,68,68,0.07)'
+            : message.taskProgress.status === 'stopped' ? 'rgba(156,163,175,0.1)'
+            : 'rgba(59,130,246,0.07)',
+          border: '1px solid',
+          borderColor: message.taskProgress.status === 'completed' ? 'rgba(34,197,94,0.2)'
+            : message.taskProgress.status === 'failed' ? 'rgba(239,68,68,0.2)'
+            : message.taskProgress.status === 'stopped' ? 'rgba(156,163,175,0.2)'
+            : 'rgba(59,130,246,0.15)',
+        }"
+      >
+        <!-- Status icon -->
         <UIcon
-          :name="message.taskProgress.status === 'running' ? 'i-lucide-loader-2' : message.taskProgress.status === 'completed' ? 'i-lucide-check-circle' : message.taskProgress.status === 'failed' ? 'i-lucide-x-circle' : 'i-lucide-circle'"
-          class="size-4"
+          :name="message.taskProgress.status === 'running' ? 'i-lucide-loader-2'
+            : message.taskProgress.status === 'completed' ? 'i-lucide-check-circle-2'
+            : message.taskProgress.status === 'failed' ? 'i-lucide-x-circle'
+            : message.taskProgress.status === 'stopped' ? 'i-lucide-stop-circle'
+            : 'i-lucide-clock'"
+          class="size-3.5 shrink-0 mt-0.5"
           :class="{ 'animate-spin': message.taskProgress.status === 'running' }"
           :style="{
-            color: message.taskProgress.status === 'completed' ? '#22c55e' : message.taskProgress.status === 'failed' ? '#ef4444' : 'var(--accent)',
+            color: message.taskProgress.status === 'completed' ? '#22c55e'
+              : message.taskProgress.status === 'failed' ? '#ef4444'
+              : message.taskProgress.status === 'stopped' ? '#9ca3af'
+              : '#3b82f6',
           }"
         />
-        <span class="text-[12px]" style="color: var(--text-secondary);">
-          {{ message.taskProgress.label }}
-        </span>
 
-        <div
-          v-if="message.taskProgress.progress !== undefined"
-          class="flex-1 h-1 rounded-full overflow-hidden max-w-[120px]"
-          style="background: var(--surface-raised);"
-        >
+        <div class="flex-1 min-w-0 space-y-0.5">
+          <!-- Label / description -->
+          <div class="font-medium" style="color: var(--text-primary);">
+            {{ message.taskProgress.label }}
+          </div>
+
+          <!-- Subagent type badge + last tool -->
+          <div v-if="message.taskProgress.subagentType || message.taskProgress.lastToolName" class="flex flex-wrap items-center gap-2">
+            <span
+              v-if="message.taskProgress.subagentType"
+              class="px-1.5 py-0.5 rounded text-[10px]"
+              style="background: rgba(59,130,246,0.12); color: #3b82f6;"
+            >{{ message.taskProgress.subagentType }}</span>
+            <span v-if="message.taskProgress.lastToolName" class="text-[11px]" style="color: var(--text-tertiary);">
+              last: <span class="font-mono" style="color: var(--text-secondary);">{{ message.taskProgress.lastToolName }}</span>
+            </span>
+          </div>
+
+          <!-- Summary (on completion) -->
+          <div v-if="message.taskProgress.summary" class="text-[11px] break-words" style="color: var(--text-secondary);">
+            {{ message.taskProgress.summary }}
+          </div>
+
+          <!-- Usage stats (on completion / progress) -->
           <div
-            class="h-full rounded-full transition-all"
-            :style="{
-              width: `${message.taskProgress.progress}%`,
-              background: 'var(--accent)',
-            }"
-          />
+            v-if="message.taskProgress.totalTokens || message.taskProgress.toolUses || message.taskProgress.durationMs"
+            class="flex flex-wrap items-center gap-3 text-[10px]"
+            style="color: var(--text-tertiary);"
+          >
+            <span v-if="message.taskProgress.totalTokens">{{ message.taskProgress.totalTokens.toLocaleString() }} tokens</span>
+            <span v-if="message.taskProgress.toolUses">{{ message.taskProgress.toolUses }} tool calls</span>
+            <span v-if="message.taskProgress.durationMs">{{ (message.taskProgress.durationMs / 1000).toFixed(1) }}s</span>
+          </div>
         </div>
       </div>
     </template>
@@ -1380,6 +1441,20 @@ function getTodoStatusBadge(status: string): { bg: string; color: string; label:
       >
         <UIcon name="i-lucide-alert-circle" class="size-4 shrink-0 mt-0.5" />
         <div class="text-[12px]">{{ message.content }}</div>
+      </div>
+    </template>
+
+    <!-- Informational Message (notice / warning / suggestion from SDK) -->
+    <template v-else-if="message.kind === 'informational' && message.content">
+      <div
+        class="flex items-start gap-2 px-3 py-1.5 rounded-lg text-[12px]"
+        :style="informationalStyle(message.informationalLevel)"
+      >
+        <UIcon
+          :name="informationalIcon(message.informationalLevel)"
+          class="size-3.5 shrink-0 mt-0.5"
+        />
+        <div class="break-words leading-relaxed" style="color: var(--text-secondary);">{{ message.content }}</div>
       </div>
     </template>
 

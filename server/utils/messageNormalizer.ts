@@ -97,6 +97,105 @@ export function normalizeSDKMessage(
         content: sdkMessage.content || '',
       })
     }
+
+    // Task lifecycle events
+    if (sdkMessage.subtype === 'task_started') {
+      if (!sdkMessage.skip_transcript) {
+        messages.push({
+          kind: 'task_notification',
+          id: sdkMessage.uuid || randomUUID(),
+          sessionId,
+          timestamp,
+          content: sdkMessage.description || 'Task started',
+          metadata: {
+            taskId: sdkMessage.task_id,
+            toolUseId: sdkMessage.tool_use_id,
+            status: 'running',
+            description: sdkMessage.description,
+            subagentType: sdkMessage.subagent_type,
+            taskType: sdkMessage.task_type,
+            workflowName: sdkMessage.workflow_name,
+          },
+        })
+      }
+    }
+
+    if (sdkMessage.subtype === 'task_progress') {
+      messages.push({
+        kind: 'task_notification',
+        id: sdkMessage.uuid || randomUUID(),
+        sessionId,
+        timestamp,
+        content: sdkMessage.description || 'Task running...',
+        metadata: {
+          taskId: sdkMessage.task_id,
+          toolUseId: sdkMessage.tool_use_id,
+          status: 'running',
+          description: sdkMessage.description,
+          subagentType: sdkMessage.subagent_type,
+          lastToolName: sdkMessage.last_tool_name,
+          totalTokens: sdkMessage.usage?.total_tokens,
+          toolUses: sdkMessage.usage?.tool_uses,
+          durationMs: sdkMessage.usage?.duration_ms,
+          summary: sdkMessage.summary,
+        },
+      })
+    }
+
+    if (sdkMessage.subtype === 'task_updated') {
+      const patch = sdkMessage.patch || {}
+      messages.push({
+        kind: 'task_notification',
+        id: sdkMessage.uuid || randomUUID(),
+        sessionId,
+        timestamp,
+        content: patch.description || patch.status || 'Task updated',
+        metadata: {
+          taskId: sdkMessage.task_id,
+          status: patch.status,
+          description: patch.description,
+          isBackgrounded: patch.is_backgrounded,
+          error: patch.error,
+          isPatch: true,
+        },
+      })
+    }
+
+    if (sdkMessage.subtype === 'task_notification') {
+      messages.push({
+        kind: 'task_notification',
+        id: sdkMessage.uuid || randomUUID(),
+        sessionId,
+        timestamp,
+        content: sdkMessage.summary || 'Task finished',
+        metadata: {
+          taskId: sdkMessage.task_id,
+          toolUseId: sdkMessage.tool_use_id,
+          status: sdkMessage.status, // 'completed' | 'failed' | 'stopped'
+          summary: sdkMessage.summary,
+          totalTokens: sdkMessage.usage?.total_tokens,
+          toolUses: sdkMessage.usage?.tool_uses,
+          durationMs: sdkMessage.usage?.duration_ms,
+        },
+      })
+    }
+
+    // Informational messages (notices, warnings, suggestions, recap-style messages)
+    if (sdkMessage.subtype === 'informational') {
+      messages.push({
+        kind: 'informational',
+        id: sdkMessage.uuid || randomUUID(),
+        sessionId,
+        timestamp,
+        content: sdkMessage.content || '',
+        metadata: {
+          level: sdkMessage.level, // 'info' | 'notice' | 'suggestion' | 'warning'
+          toolUseId: sdkMessage.tool_use_id,
+          preventContinuation: sdkMessage.prevent_continuation,
+        },
+      })
+    }
+
     // Other system subtypes (init, etc.) are silently ignored
   }
 
