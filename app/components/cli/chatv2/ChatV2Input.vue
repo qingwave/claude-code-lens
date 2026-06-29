@@ -249,6 +249,7 @@ onMounted(async () => {
         v-model="localValue"
         :disabled="disabled"
         rows="1"
+        autocomplete="off"
         class="flex-1 bg-transparent text-[13px] resize-none focus:outline-none leading-5"
         :style="{
           color: disabled ? 'var(--text-disabled)' : 'var(--text-primary)',

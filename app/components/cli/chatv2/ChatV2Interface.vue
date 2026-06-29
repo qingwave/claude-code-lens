@@ -34,6 +34,7 @@ const {
   sendChat,
   abort,
   respondToPermission,
+  respondToPrompt,
   sessionStore,
   setCurrentSessionId,
   contextMonitor,
@@ -156,7 +157,7 @@ function openRightTab(tab: 'context' | 'explorer' | 'git' | 'preview') {
 // Responsive sidebar width based on window size
 const windowWidth = ref(1200)
 const isSmallScreen = computed(() => windowWidth.value < 1024)
-const isMobileScreen = computed(() => false)
+const isMobileScreen = computed(() => windowWidth.value < 768)
 const isHeaderTwoRow = computed(() => false)
 
 function updateWidth() {
@@ -171,6 +172,7 @@ onMounted(async () => {
   updateWidth()
   window.addEventListener('resize', updateWidth)
   document.addEventListener('click', handleEffortClickOutside)
+  document.addEventListener('click', handleMaxTurnsClickOutside)
   
   // Fetch sessions on mount
   await fetchSessions()
@@ -183,6 +185,7 @@ onUnmounted(() => {
   document.removeEventListener('mousemove', onLeftSidebarDragMove)
   document.removeEventListener('mouseup', onLeftSidebarDragEnd)
   document.removeEventListener('click', handleEffortClickOutside)
+  document.removeEventListener('click', handleMaxTurnsClickOutside)
 })
 
 watch(isMobileScreen, (isMobile) => {
@@ -339,6 +342,25 @@ const effortOptions: { value: EffortLevel; label: string; icon: string; descript
 
 const currentEffort = computed(() => effortOptions.find(o => o.value === effortLevel.value)!)
 const effortMenuRef = ref<HTMLElement | null>(null)
+
+// Max turns selector
+const maxTurns = ref<number | null>(null) // null = unlimited
+const showMaxTurnsMenu = ref(false)
+const maxTurnsMenuRef = ref<HTMLElement | null>(null)
+const maxTurnsOptions: { value: number | null; label: string; description: string }[] = [
+  { value: null,  label: '∞',   description: 'No limit' },
+  { value: 5,    label: '5',   description: 'Quick tasks' },
+  { value: 10,   label: '10',  description: 'Default' },
+  { value: 20,   label: '20',  description: 'Extended tasks' },
+  { value: 50,   label: '50',  description: 'Long running' },
+]
+const currentMaxTurns = computed(() => maxTurnsOptions.find(o => o.value === maxTurns.value) ?? maxTurnsOptions[0]!)
+
+function handleMaxTurnsClickOutside(e: MouseEvent) {
+  if (maxTurnsMenuRef.value && !maxTurnsMenuRef.value.contains(e.target as Node)) {
+    showMaxTurnsMenu.value = false
+  }
+}
 
 const contextUsageColorHex = computed(() => {
   const c = contextMonitor.contextUsageColor.value
@@ -645,6 +667,38 @@ const displayMessages = computed<DisplayChatMessage[]>(() => {
   }
 
   return finalMessages
+})
+
+// Message search
+const searchQuery = ref('')
+const showSearch = ref(false)
+const searchInputRef = ref<HTMLInputElement | null>(null)
+
+function openSearch() {
+  showSearch.value = true
+  nextTick(() => searchInputRef.value?.focus())
+}
+
+function closeSearch() {
+  showSearch.value = false
+  searchQuery.value = ''
+}
+
+const filteredMessages = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return displayMessages.value
+  return displayMessages.value.filter(m => {
+    if (m.content && m.content.toLowerCase().includes(q)) return true
+    if (m.thinking && m.thinking.toLowerCase().includes(q)) return true
+    if (m.toolName && m.toolName.toLowerCase().includes(q)) return true
+    return false
+  })
+})
+
+const searchMatchCount = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return 0
+  return filteredMessages.value.length
 })
 
 // Watch for errors and show toast
@@ -1305,6 +1359,7 @@ function sendRegularMessage(text: string, images: string[]) {
       permissionMode: selectedPermissionMode.value,
       model: selectedModel.value,
       effort: effortLevel.value,
+      maxTurns: maxTurns.value ?? undefined,
       outputStyleId: selectedOutputStyleId.value,
       images,
     })
@@ -1317,6 +1372,7 @@ function sendRegularMessage(text: string, images: string[]) {
     permissionMode: selectedPermissionMode.value,
     model: selectedModel.value,
     effort: effortLevel.value,
+    maxTurns: maxTurns.value ?? undefined,
     outputStyleId: selectedOutputStyleId.value,
     images,
   })
@@ -1345,6 +1401,16 @@ async function handleSendMessage(images: string[] = []) {
 // Handle permission response
 async function handlePermissionResponse(permissionId: string, decision: 'allow' | 'deny', remember = false, updatedInput?: any) {
   respondToPermission(permissionId, decision, remember, updatedInput)
+}
+
+// Handle interactive prompt response
+function handlePromptResponse(promptId: string, value: string) {
+  respondToPrompt(promptId, value)
+}
+
+// Handle message resend
+function handleResend(content: string, images?: string[]) {
+  sendRegularMessage(content, images || [])
 }
 
 // Handle session renamed
@@ -1690,7 +1756,7 @@ function handleClosePreview() {
                 :to="urlProjectName ? `/cli/project/${encodeURIComponent(urlProjectName)}` : '/project-artifacts'"
                 class="text-[9px] md:text-[10px] font-mono leading-tight mt-0.5 text-ellipsis overflow-hidden whitespace-nowrap hover:text-accent transition-colors"
                 style="color: var(--text-tertiary);"
-                @click="urlSessionId = null; viewMode = 'live'"
+                @click.prevent="urlProjectName && handleClaudeCodeProjectSelected({ projectName: urlProjectName, projectDisplayName: currentProjectDisplayName })"
               >
                 <span v-if="isLoadingHistoryWithDelay && !isLoadingMore" class="animate-pulse opacity-50">Loading session...</span>
                 <span v-else>{{ currentProjectDisplayName || 'Artifacts' }}</span>
@@ -1783,6 +1849,15 @@ function handleClosePreview() {
                 <UIcon name="i-lucide-terminal" class="size-4" />
               </button>
             </UTooltip>
+            <UTooltip text="Search Messages" :popper="{ placement: 'top' }">
+              <button
+                class="p-1.5 rounded-md transition-all hover-bg"
+                :style="{ color: showSearch ? 'var(--accent)' : 'var(--text-tertiary)' }"
+                @click="showSearch ? closeSearch() : openSearch()"
+              >
+                <UIcon name="i-lucide-search" class="size-4" />
+              </button>
+            </UTooltip>
           </div>
 
           <!-- Session ID (only in live mode) -->
@@ -1816,6 +1891,44 @@ function handleClosePreview() {
           </div>
         </div>
 
+        <!-- Search Bar (fixed sub-header, shown when search is active) -->
+        <Transition
+          enter-active-class="transition duration-150 ease-out"
+          enter-from-class="opacity-0 -translate-y-1"
+          enter-to-class="opacity-100 translate-y-0"
+          leave-active-class="transition duration-100 ease-in"
+          leave-from-class="opacity-100 translate-y-0"
+          leave-to-class="opacity-0 -translate-y-1"
+        >
+          <div
+            v-if="showSearch"
+            class="shrink-0 flex items-center gap-2 px-4 py-2 border-b"
+            style="border-color: var(--border-subtle); background: var(--surface-base);"
+          >
+            <UIcon name="i-lucide-search" class="size-3.5 shrink-0" style="color: var(--text-tertiary);" />
+            <input
+              ref="searchInputRef"
+              v-model="searchQuery"
+              type="text"
+              autocomplete="off"
+              placeholder="Search messages..."
+              class="flex-1 bg-transparent text-[12px] outline-none placeholder:text-[var(--text-disabled)]"
+              style="color: var(--text-primary);"
+              @keydown.escape="closeSearch"
+            />
+            <span v-if="searchQuery.trim()" class="text-[11px] shrink-0" style="color: var(--text-tertiary);">
+              {{ searchMatchCount }} result{{ searchMatchCount !== 1 ? 's' : '' }}
+            </span>
+            <button
+              class="p-0.5 rounded hover-bg shrink-0"
+              style="color: var(--text-tertiary);"
+              @click="closeSearch"
+            >
+              <UIcon name="i-lucide-x" class="size-3.5" />
+            </button>
+          </div>
+        </Transition>
+
         <div
           ref="messagesContainerRef"
           class="h-full overflow-y-auto overflow-x-hidden"
@@ -1827,6 +1940,36 @@ function handleClosePreview() {
         >
           <!-- Content column - grows with available space -->
           <div class="max-w-[1200px] mx-auto px-4 py-4 space-y-4 min-h-full min-w-0">
+
+            <!-- Disconnected Banner -->
+            <Transition
+              enter-active-class="transition duration-200 ease-out"
+              enter-from-class="opacity-0 -translate-y-2"
+              enter-to-class="opacity-100 translate-y-0"
+              leave-active-class="transition duration-150 ease-in"
+              leave-from-class="opacity-100 translate-y-0"
+              leave-to-class="opacity-0 -translate-y-2"
+            >
+              <div
+                v-if="!isConnected && (viewMode === 'live' || isContinuingHistory)"
+                class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-[12px]"
+                style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2);"
+              >
+                <UIcon name="i-lucide-wifi-off" class="size-4 shrink-0" style="color: #ef4444;" />
+                <span class="flex-1" style="color: var(--text-secondary);">
+                  <span class="font-medium" style="color: #ef4444;">Disconnected</span>
+                  — reconnecting automatically...
+                </span>
+                <button
+                  class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all hover:opacity-90 shrink-0"
+                  style="background: rgba(239, 68, 68, 0.15); color: #ef4444;"
+                  @click="connect()"
+                >
+                  Retry
+                </button>
+              </div>
+            </Transition>
+
             <!-- Welcome / Select State -->
             <div v-if="viewMode === 'live' && !isLiveChat && !currentSessionId" class="flex items-center justify-center h-full text-center">
               <div class="max-w-md px-6">
@@ -1892,9 +2035,11 @@ function handleClosePreview() {
               </div>
 
               <ChatV2Messages
-                :messages="displayMessages"
+                :messages="filteredMessages"
                 :is-streaming="isStreaming"
                 @permission-respond="handlePermissionResponse"
+                @prompt-respond="handlePromptResponse"
+                @resend="handleResend"
                 @open-file="handleOpenFile"
               />
 
@@ -1979,6 +2124,54 @@ function handleClosePreview() {
                         <div class="text-xs truncate" style="color: var(--text-tertiary);">{{ option.description }}</div>
                       </div>
                       <UIcon v-if="effortLevel === option.value" name="i-lucide-check" class="size-3.5 ml-auto shrink-0" :style="{ color: option.color }" />
+                    </button>
+                  </div>
+                </div>
+              </Transition>
+            </div>
+
+            <!-- Max Turns Selector -->
+            <div ref="maxTurnsMenuRef" class="relative">
+              <button
+                class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors hover:bg-[var(--surface-hover)]"
+                style="color: var(--text-secondary);"
+                :title="`Max turns: ${currentMaxTurns.description}`"
+                @click="showMaxTurnsMenu = !showMaxTurnsMenu"
+              >
+                <UIcon name="i-lucide-repeat" class="size-3.5 shrink-0" />
+                <span>{{ currentMaxTurns.label }}</span>
+              </button>
+
+              <Transition
+                enter-active-class="transition duration-150 ease-out"
+                enter-from-class="opacity-0 translate-y-2 scale-95"
+                enter-to-class="opacity-100 translate-y-0 scale-100"
+                leave-active-class="transition duration-100 ease-in"
+                leave-from-class="opacity-100 translate-y-0 scale-100"
+                leave-to-class="opacity-0 translate-y-2 scale-95"
+              >
+                <div
+                  v-if="showMaxTurnsMenu"
+                  class="absolute bottom-full right-0 mb-1 w-44 rounded-xl border shadow-xl backdrop-blur-md overflow-hidden z-[200]"
+                  style="background: var(--surface-overlay); border-color: var(--border-subtle);"
+                >
+                  <div class="px-3 py-2 border-b" style="border-color: var(--border-subtle);">
+                    <p class="text-[11px] font-medium" style="color: var(--text-tertiary);">Max Turns</p>
+                  </div>
+                  <div class="p-1.5">
+                    <button
+                      v-for="option in maxTurnsOptions"
+                      :key="String(option.value)"
+                      class="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg transition-all text-left text-[13px]"
+                      :style="{
+                        background: maxTurns === option.value ? 'var(--surface-hover)' : 'transparent',
+                        color: 'var(--text-primary)',
+                      }"
+                      @click="maxTurns = option.value; showMaxTurnsMenu = false"
+                    >
+                      <span class="font-mono font-medium w-6 text-center shrink-0" style="color: var(--accent);">{{ option.label }}</span>
+                      <span class="flex-1 text-xs" style="color: var(--text-tertiary);">{{ option.description }}</span>
+                      <UIcon v-if="maxTurns === option.value" name="i-lucide-check" class="size-3.5 shrink-0" style="color: var(--accent);" />
                     </button>
                   </div>
                 </div>
