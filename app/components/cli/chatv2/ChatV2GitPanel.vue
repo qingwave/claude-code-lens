@@ -3,11 +3,37 @@ const props = defineProps<{
   projectName: string
 }>()
 
-const { data: status, pending, refresh } = useFetch(`/api/projects/${encodeURIComponent(props.projectName)}/git/status`)
-
 const emit = defineEmits<{
   'open-file': [path: string]
 }>()
+
+interface GitStatusSuccess {
+  branch: string
+  modified: string[]
+  added: string[]
+  deleted: string[]
+  untracked: string[]
+  staged: string[]
+  projectPath: string
+  error?: undefined
+}
+interface GitStatusError {
+  error: string
+  projectPath: string
+  branch?: undefined
+  modified?: undefined
+  added?: undefined
+  deleted?: undefined
+  untracked?: undefined
+  staged?: undefined
+}
+type GitStatus = GitStatusSuccess | GitStatusError
+
+const { data: rawStatus, pending, refresh } = useFetch<GitStatus>(
+  () => `/api/projects/${encodeURIComponent(props.projectName)}/git/status`
+)
+
+const status = computed(() => rawStatus.value as GitStatus | null)
 </script>
 
 <template>
@@ -15,7 +41,7 @@ const emit = defineEmits<{
     <div class="px-4 py-2 border-b flex items-center justify-between" style="border-color: var(--border-subtle); background: var(--surface-raised);">
       <div class="flex items-center gap-2">
         <span class="text-[11px] font-bold uppercase tracking-wider text-meta">Git</span>
-        <span v-if="status?.branch" class="text-[10px] font-mono px-1.5 py-0.5 rounded-full" style="background: var(--accent-muted); color: var(--accent);">
+        <span v-if="status && !status.error && status.branch" class="text-[10px] font-mono px-1.5 py-0.5 rounded-full" style="background: var(--accent-muted); color: var(--accent);">
           <UIcon name="i-lucide-git-branch" class="size-2.5 inline mr-1" />
           {{ status.branch }}
         </span>
@@ -24,18 +50,18 @@ const emit = defineEmits<{
         <UIcon name="i-lucide-refresh-cw" class="size-3" :class="{ 'animate-spin': pending }" />
       </button>
     </div>
-    
+
     <div class="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
       <div v-if="pending && !status" class="flex items-center justify-center h-20">
         <UIcon name="i-lucide-loader-2" class="size-5 animate-spin text-tertiary" />
       </div>
-      
+
       <div v-else-if="status?.error" class="text-center py-8 px-4">
         <UIcon name="i-lucide-alert-circle" class="size-8 mx-auto mb-3 text-tertiary opacity-40" />
         <p class="text-[13px] font-medium mb-1" style="color: var(--text-primary);">Not a Git Repository</p>
         <p class="text-[11px]" style="color: var(--text-tertiary);">{{ status.error }}</p>
       </div>
-      
+
       <div v-else-if="status" class="space-y-6">
         <!-- Staged Changes -->
         <div v-if="status.staged?.length" class="space-y-2">
@@ -44,7 +70,7 @@ const emit = defineEmits<{
             <span class="text-[10px] font-mono" style="color: var(--text-tertiary);">{{ status.staged.length }}</span>
           </div>
           <div class="space-y-1">
-            <button 
+            <button
               v-for="file in status.staged" :key="file"
               class="w-full flex items-center gap-2 px-2 py-1.5 hover-bg rounded text-left group transition-colors"
               @click="emit('open-file', file)"
@@ -62,7 +88,7 @@ const emit = defineEmits<{
             <span class="text-[10px] font-mono" style="color: var(--text-tertiary);">{{ status.modified.length }}</span>
           </div>
           <div class="space-y-1">
-            <button 
+            <button
               v-for="file in status.modified" :key="file"
               class="w-full flex items-center gap-2 px-2 py-1.5 hover-bg rounded text-left group transition-colors"
               @click="emit('open-file', file)"
@@ -80,7 +106,7 @@ const emit = defineEmits<{
             <span class="text-[10px] font-mono" style="color: var(--text-tertiary);">{{ status.untracked.length }}</span>
           </div>
           <div class="space-y-1">
-            <button 
+            <button
               v-for="file in status.untracked" :key="file"
               class="w-full flex items-center gap-2 px-2 py-1.5 hover-bg rounded text-left group transition-colors"
               @click="emit('open-file', file)"
@@ -98,7 +124,7 @@ const emit = defineEmits<{
             <span class="text-[10px] font-mono" style="color: var(--text-tertiary);">{{ status.deleted.length }}</span>
           </div>
           <div class="space-y-1">
-            <div 
+            <div
               v-for="file in status.deleted" :key="file"
               class="w-full flex items-center gap-2 px-2 py-1.5 opacity-60 grayscale"
             >
@@ -107,8 +133,26 @@ const emit = defineEmits<{
             </div>
           </div>
         </div>
-        
-        <div v-if="!status.modified?.length && !status.untracked?.length && !status.staged?.length && !status.deleted?.length" class="text-center py-12 px-4">
+
+        <!-- Added -->
+        <div v-if="status.added?.length" class="space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-[11px] font-bold uppercase tracking-wider text-meta">Added</h4>
+            <span class="text-[10px] font-mono" style="color: var(--text-tertiary);">{{ status.added.length }}</span>
+          </div>
+          <div class="space-y-1">
+            <button
+              v-for="file in status.added" :key="file"
+              class="w-full flex items-center gap-2 px-2 py-1.5 hover-bg rounded text-left group transition-colors"
+              @click="emit('open-file', file)"
+            >
+              <UIcon name="i-lucide-file-plus-2" class="size-3.5 text-success" />
+              <span class="text-[12px] truncate flex-1" style="color: var(--text-secondary);">{{ file }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="!status.modified?.length && !status.untracked?.length && !status.staged?.length && !status.deleted?.length && !status.added?.length" class="text-center py-12 px-4">
           <UIcon name="i-lucide-check-circle" class="size-10 mx-auto mb-3 text-success opacity-30" />
           <p class="text-[13px] font-medium" style="color: var(--text-secondary);">Working tree clean</p>
         </div>
