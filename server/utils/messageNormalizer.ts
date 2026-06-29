@@ -281,9 +281,12 @@ export function normalizeSDKMessage(
         id: randomUUID(),
         sessionId,
         timestamp,
-        content: '',
+        content: sdkMessage.result || '',
         metadata: {
           stopReason: sdkMessage.stop_reason,
+          durationMs: sdkMessage.duration_ms,
+          numTurns: sdkMessage.num_turns,
+          isError: sdkMessage.is_error,
           modelUsage: sdkMessage.modelUsage,
           aggregatedUsage: {
             input: totalInput,

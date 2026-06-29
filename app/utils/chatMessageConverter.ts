@@ -293,9 +293,12 @@ function convertSingleMessage(
       } as DisplayChatMessage
 
     case 'complete':
-      // Don't display complete messages as chat bubbles
-      // Could optionally show as a status
-      return null
+      return {
+        ...base,
+        kind: 'complete',
+        content: msg.content || '',
+        metadata: msg.metadata,
+      } as DisplayChatMessage
 
     case 'error':
       return {

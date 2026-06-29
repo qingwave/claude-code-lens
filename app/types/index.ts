@@ -509,6 +509,8 @@ export interface DisplayChatMessage {
   resolvedAnswer?: string
   // informational
   informationalLevel?: 'info' | 'notice' | 'suggestion' | 'warning'
+  // complete / recap
+  metadata?: Record<string, any>
 }
 
 export interface TaskProgress {

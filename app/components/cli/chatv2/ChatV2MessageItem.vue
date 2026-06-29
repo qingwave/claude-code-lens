@@ -1459,6 +1459,54 @@ function informationalStyle(level?: string): Record<string, string> {
       </div>
     </template>
 
+    <template v-else-if="message.kind === 'complete'">
+      <div
+        class="rounded-xl px-4 py-3 space-y-2.5"
+        style="background: var(--surface-raised); border: 1px solid var(--border-subtle);"
+      >
+        <!-- Meta row: duration / turns / cost -->
+        <div class="flex items-center gap-3 flex-wrap">
+          <div class="flex items-center gap-1.5">
+            <UIcon name="i-lucide-check-circle-2" class="size-3.5" style="color: #22c55e;" />
+            <span class="text-[11px] font-medium" style="color: #22c55e;">Done</span>
+          </div>
+          <template v-if="message.metadata?.durationMs">
+            <span class="text-[10px]" style="color: var(--text-tertiary);">·</span>
+            <div class="flex items-center gap-1">
+              <UIcon name="i-lucide-clock" class="size-3" style="color: var(--text-tertiary);" />
+              <span class="text-[11px] font-mono" style="color: var(--text-secondary);">
+                {{ (message.metadata.durationMs / 1000).toFixed(1) }}s
+              </span>
+            </div>
+          </template>
+          <template v-if="message.metadata?.numTurns">
+            <span class="text-[10px]" style="color: var(--text-tertiary);">·</span>
+            <div class="flex items-center gap-1">
+              <UIcon name="i-lucide-repeat-2" class="size-3" style="color: var(--text-tertiary);" />
+              <span class="text-[11px] font-mono" style="color: var(--text-secondary);">
+                {{ message.metadata.numTurns }} turn{{ message.metadata.numTurns === 1 ? '' : 's' }}
+              </span>
+            </div>
+          </template>
+          <template v-if="message.metadata?.aggregatedUsage?.totalCost">
+            <span class="text-[10px]" style="color: var(--text-tertiary);">·</span>
+            <div class="flex items-center gap-1">
+              <UIcon name="i-lucide-dollar-sign" class="size-3" style="color: var(--text-tertiary);" />
+              <span class="text-[11px] font-mono" style="color: var(--text-secondary);">
+                ${{ message.metadata.aggregatedUsage.totalCost.toFixed(4) }}
+              </span>
+            </div>
+          </template>
+        </div>
+        <!-- Recap text -->
+        <p
+          v-if="message.content"
+          class="text-[12px] leading-relaxed"
+          style="color: var(--text-secondary);"
+        >{{ message.content }}</p>
+      </div>
+    </template>
+
     <!-- Timestamp (if shown) -->
     <ClientOnly>
       <div
