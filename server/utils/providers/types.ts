@@ -55,11 +55,24 @@ export interface ProviderAdapter {
    * Respond to a permission request (optional, only for providers that support it).
    * @param permissionId Permission request ID
    * @param decision Allow or deny
+   * @param updatedInput Optional updated input (e.g. AskUserQuestion answers)
+   * @param remember Whether to remember this decision for future requests
    */
   respondToPermission?(
     permissionId: string,
     decision: 'allow' | 'deny',
-    updatedInput?: any
+    updatedInput?: any,
+    remember?: boolean
+  ): Promise<void>
+
+  /**
+   * Respond to an interactive prompt (optional).
+   * @param promptId Prompt ID
+   * @param value User's response value
+   */
+  respondToInteractivePrompt?(
+    promptId: string,
+    value: string
   ): Promise<void>
 
   /**
@@ -79,6 +92,8 @@ export interface ProviderQueryOptions {
   permissionMode?: PermissionMode
   images?: string[]
   effort?: 'low' | 'medium' | 'high' | 'max'
+  maxTurns?: number
+  outputStyleId?: string
   /** User message to save with correct sessionId (passed from WS handler) */
   userMessage?: NormalizedMessage
 }

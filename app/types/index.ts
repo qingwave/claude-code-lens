@@ -449,6 +449,14 @@ export interface NormalizedMessage {
   summary?: string
   resolvedDecision?: 'allow' | 'deny'
   resolvedAnswer?: string
+  interactivePrompt?: {
+    question: string
+    options?: string[]
+    multiline?: boolean
+    placeholder?: string
+  }
+  taskProgress?: TaskProgress
+  informationalLevel?: 'info' | 'notice' | 'suggestion' | 'warning'
 }
 
 // ── Chat v2 Types ──────────────────────────────────────
@@ -571,6 +579,7 @@ export type ChatV2WebSocketMessage =
       permissionMode?: PermissionMode
       model?: string
       effort?: EffortLevel
+      maxTurns?: number
       outputStyleId?: string
       images?: string[]
     }
@@ -599,6 +608,7 @@ export interface ProviderQueryOptions {
   model?: string
   permissionMode?: PermissionMode
   effort?: EffortLevel
+  maxTurns?: number
   outputStyleId?: string
   images?: string[]
 }
