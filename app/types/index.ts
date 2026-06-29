@@ -579,7 +579,7 @@ export type ChatV2WebSocketMessage =
       permissionMode?: PermissionMode
       model?: string
       effort?: EffortLevel
-      maxTurns?: number
+      maxTurns?: number | null
       outputStyleId?: string
       images?: string[]
     }

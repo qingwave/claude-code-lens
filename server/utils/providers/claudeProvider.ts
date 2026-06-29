@@ -207,7 +207,8 @@ export const claudeProvider: ProviderAdapter = {
         cwd: options.workingDir || process.cwd(),
         permissionMode: mapPermissionMode(options.permissionMode),
         allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'],
-        maxTurns: options.maxTurns ?? 10,
+        // null = unlimited (user explicitly chose ∞), undefined = not set (default to 10)
+        maxTurns: options.maxTurns === null ? undefined : (options.maxTurns ?? 10),
         includePartialMessages: true,
       }
 

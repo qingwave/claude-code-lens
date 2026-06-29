@@ -92,7 +92,7 @@ export interface ProviderQueryOptions {
   permissionMode?: PermissionMode
   images?: string[]
   effort?: 'low' | 'medium' | 'high' | 'max'
-  maxTurns?: number
+  maxTurns?: number | null
   outputStyleId?: string
   /** User message to save with correct sessionId (passed from WS handler) */
   userMessage?: NormalizedMessage

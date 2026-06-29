@@ -344,7 +344,7 @@ const currentEffort = computed(() => effortOptions.find(o => o.value === effortL
 const effortMenuRef = ref<HTMLElement | null>(null)
 
 // Max turns selector
-const maxTurns = ref<number | null>(null) // null = unlimited
+const maxTurns = ref<number | null>(10)
 const showMaxTurnsMenu = ref(false)
 const maxTurnsMenuRef = ref<HTMLElement | null>(null)
 const maxTurnsOptions: { value: number | null; label: string; description: string }[] = [
