@@ -370,6 +370,8 @@ onMounted(async () => {
   await fetchProjects()
   await fetchOutputStyles()
 })
+
+defineExpose({ refreshProject: loadProjectSessions })
 </script>
 
 <template>

@@ -113,6 +113,7 @@ const inputText = ref('')
 const messagesContainerRef = ref<HTMLElement | null>(null)
 const terminalPaneRef = ref<InstanceType<typeof ChatV2TerminalPane> | null>(null)
 const sidebarCollapsed = ref(false)
+const sidebarRef = ref<{ refreshProject: (projectName: string) => Promise<void> } | null>(null)
 const mobileSidebarOpen = ref(false)
 const showRightSidebar = ref(false)
 const activeRightTab = ref<'context' | 'explorer' | 'git' | 'preview'>('context')
@@ -910,6 +911,7 @@ async function refreshProjectForNewSession(newId: string, workingDir: string) {
 
   // Refresh sessions list
   await history.fetchSessions(matchingProject.name)
+  await sidebarRef.value?.refreshProject(matchingProject.name)
   urlSessionId.value = newId
 
   let newSession = history.sessions.value.find(s => s.id === newId)
@@ -1521,6 +1523,7 @@ function handleClosePreview() {
       />
       <!-- Projects Sidebar -->
       <ChatV2ProjectsSidebar
+        ref="sidebarRef"
         :collapsed="sidebarCollapsed"
         :current-session-id="urlSessionId"
         :is-loading-messages="isLoadingClaudeCodeMessages"
