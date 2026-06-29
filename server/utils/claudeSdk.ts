@@ -66,6 +66,10 @@ export async function queryClaudeChat(
       allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'],
       maxTurns: 10,
       includePartialMessages: true,
+      env: {
+        ...process.env,
+        CLAUDE_CODE_ENTRYPOINT: 'cli',
+      },
     }
 
     // Add system prompt configuration
