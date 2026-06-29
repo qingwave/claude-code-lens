@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Agent, AgentFrontmatter, AgentMemory } from '~/types'
+import type { Agent, AgentFrontmatter, AgentMemory, AgentTool } from '~/types'
 import { MODEL_OPTIONS, DEFAULT_MODEL } from '~/utils/models'
 
 const emit = defineEmits<{
@@ -269,7 +269,8 @@ function toggleTool(tool: AgentTool) {
       <div class="field-group">
         <label class="field-label">Skills</label>
         <UMultiSelectDropdown
-          v-model="frontmatter.skills"
+          :model-value="frontmatter.skills ?? []"
+          @update:model-value="frontmatter.skills = $event"
           :options="allSkills.map(s => ({
             value: s.slug,
             label: s.frontmatter.name || s.slug,

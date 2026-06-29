@@ -17,9 +17,9 @@ async function getOutputStyleContent(id: string, projectDir?: string): Promise<{
   // 1. Check built-in
   const defaultStyle = DEFAULT_OUTPUT_STYLES.find(s => s.id === id)
   if (defaultStyle) {
-    return { 
-      content: id === 'default' ? '' : defaultStyle.content, 
-      keepCodingInstructions: defaultStyle.keepCodingInstructions 
+    return {
+      content: id === 'default' ? '' : defaultStyle.content,
+      keepCodingInstructions: defaultStyle.keepCodingInstructions ?? true
     }
   }
 
@@ -375,7 +375,7 @@ export const claudeProvider: ProviderAdapter = {
       for await (const message of queryInstance) {
         if (message.session_id && !capturedSessionId) {
           capturedSessionId = message.session_id
-          const extendedInstance = queryInstance as QueryInstance
+          const extendedInstance = queryInstance as unknown as QueryInstance
           extendedInstance.peerId = ws.id
           activeQueries.set(capturedSessionId, extendedInstance)
 
@@ -395,7 +395,7 @@ export const claudeProvider: ProviderAdapter = {
             })
           }
         } else if (isRealSessionId && capturedSessionId && !activeQueries.has(capturedSessionId)) {
-          const extendedInstance = queryInstance as QueryInstance
+          const extendedInstance = queryInstance as unknown as QueryInstance
           extendedInstance.peerId = ws.id
           activeQueries.set(capturedSessionId, extendedInstance)
         }

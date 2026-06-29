@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Agent, AgentFrontmatter } from "~/types";
+import type { Agent, AgentFrontmatter, AgentTool, AgentMemory } from "~/types";
 import { MODEL, MODEL_IDS, MODEL_META } from "~/utils/models";
 
 const props = defineProps<{
@@ -265,7 +265,8 @@ async function save() {
       </span>
       <div class="mt-2">
         <UMultiSelectDropdown
-          v-model="frontmatter.skills"
+          :model-value="frontmatter.skills ?? []"
+          @update:model-value="frontmatter.skills = $event"
           :options="allSkills.map(s => ({
             value: s.slug,
             label: s.frontmatter.name || s.slug,
