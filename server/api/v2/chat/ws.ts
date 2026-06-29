@@ -77,6 +77,7 @@ export default defineWebSocketHandler({
               permissionMode: msg.permissionMode,
               model: msg.model,
               effort: msg.effort,
+              maxTurns: msg.maxTurns,
               outputStyleId: msg.outputStyleId,
               images: msg.images,
               // Pass user message for provider to save with correct sessionId
@@ -110,12 +111,12 @@ export default defineWebSocketHandler({
           const provider = providerRegistry.getDefault()
 
           if (provider.respondToPermission) {
-            await provider.respondToPermission(msg.permissionId, msg.decision, msg.updatedInput)
+            await provider.respondToPermission(msg.permissionId, msg.decision, msg.updatedInput, msg.remember)
 
             peer.send(JSON.stringify({
               kind: 'status',
               id: `status-${Date.now()}`,
-              sessionId: msg.sessionId || peer.id,
+              sessionId: peer.id,
               timestamp: new Date().toISOString(),
               content: `Permission ${msg.decision === 'allow' ? 'granted' : 'denied'}`,
             }))
@@ -134,8 +135,12 @@ export default defineWebSocketHandler({
         }
 
         case 'interactive_response': {
-          // Handle interactive prompt responses (future feature)
-          console.log('[Chat v2 WS] Interactive response:', msg.promptId, msg.value)
+          const provider = providerRegistry.getDefault()
+          if (provider.respondToInteractivePrompt) {
+            await provider.respondToInteractivePrompt(msg.promptId, msg.value)
+          } else {
+            console.log('[Chat v2 WS] Provider does not support interactive prompts')
+          }
           break
         }
 

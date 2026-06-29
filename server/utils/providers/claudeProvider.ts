@@ -117,6 +117,13 @@ interface PermissionResolver {
 }
 const pendingPermissions = new Map<string, PermissionResolver>()
 
+interface InteractivePromptResolver {
+  resolve: (value: string) => void
+  reject: (error: Error) => void
+  peerId: string
+}
+const pendingInteractivePrompts = new Map<string, InteractivePromptResolver>()
+
 const PERMISSION_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
 /**
@@ -144,6 +151,15 @@ export async function cleanupPeer(peerId: string): Promise<void> {
       console.log(`[ClaudeProvider] Rejecting permission ${permissionId} due to connection closed`)
       resolver.reject(new Error('IPC connection closed'))
       pendingPermissions.delete(permissionId)
+    }
+  }
+
+  // 3. Reject pending interactive prompts for this peer
+  for (const [promptId, resolver] of pendingInteractivePrompts.entries()) {
+    if (resolver.peerId === peerId) {
+      console.log(`[ClaudeProvider] Rejecting interactive prompt ${promptId} due to connection closed`)
+      resolver.reject(new Error('IPC connection closed'))
+      pendingInteractivePrompts.delete(promptId)
     }
   }
 }
@@ -191,7 +207,7 @@ export const claudeProvider: ProviderAdapter = {
         cwd: options.workingDir || process.cwd(),
         permissionMode: mapPermissionMode(options.permissionMode),
         allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'],
-        maxTurns: 10,
+        maxTurns: options.maxTurns ?? 10,
         includePartialMessages: true,
       }
 
@@ -312,6 +328,42 @@ export const claudeProvider: ProviderAdapter = {
             return { behavior: 'deny', message: error.message || 'Connection closed' }
           }
         }
+
+        sdkOptions.onInteractivePrompt = async (prompt: { id: string; question: string; options?: string[]; multiline?: boolean; placeholder?: string }) => {
+          const promptId = prompt.id || randomUUID()
+          const sessionId = capturedSessionId || options.sessionId || 'unknown'
+
+          sendMessage(ws, {
+            kind: 'interactive_prompt',
+            id: promptId,
+            sessionId,
+            timestamp: new Date().toISOString(),
+            content: prompt.question,
+            provider: 'claude',
+            interactivePrompt: {
+              question: prompt.question,
+              options: prompt.options,
+              multiline: prompt.multiline,
+              placeholder: prompt.placeholder,
+            },
+          })
+
+          try {
+            const value = await new Promise<string>((resolve, reject) => {
+              pendingInteractivePrompts.set(promptId, { resolve, reject, peerId: ws.id })
+
+              setTimeout(() => {
+                if (pendingInteractivePrompts.has(promptId)) {
+                  pendingInteractivePrompts.delete(promptId)
+                  resolve('')
+                }
+              }, PERMISSION_TIMEOUT_MS)
+            })
+            return value
+          } catch (error: any) {
+            return ''
+          }
+        }
       }
 
       const queryInstance = query({
@@ -395,7 +447,7 @@ export const claudeProvider: ProviderAdapter = {
     }
   },
 
-  async respondToPermission(permissionId: string, decision: 'allow' | 'deny', updatedInput?: any): Promise<void> {
+  async respondToPermission(permissionId: string, decision: 'allow' | 'deny', updatedInput?: any, remember?: boolean): Promise<void> {
     const pending = pendingPermissions.get(permissionId)
     if (pending) {
       pendingPermissions.delete(permissionId)
@@ -404,9 +456,20 @@ export const claudeProvider: ProviderAdapter = {
         message: decision === 'deny' ? 'User denied tool use' : undefined,
         updatedInput,
       })
-      console.log(`[ClaudeProvider] Permission ${permissionId} resolved: ${decision}`)
+      console.log(`[ClaudeProvider] Permission ${permissionId} resolved: ${decision}${remember ? ' (remembered)' : ''}`)
     } else {
       console.warn(`[ClaudeProvider] No pending permission found for ${permissionId}`)
+    }
+  },
+
+  async respondToInteractivePrompt(promptId: string, value: string): Promise<void> {
+    const pending = pendingInteractivePrompts.get(promptId)
+    if (pending) {
+      pendingInteractivePrompts.delete(promptId)
+      pending.resolve(value)
+      console.log(`[ClaudeProvider] Interactive prompt ${promptId} resolved`)
+    } else {
+      console.warn(`[ClaudeProvider] No pending interactive prompt found for ${promptId}`)
     }
   },
 
