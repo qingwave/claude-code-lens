@@ -29,21 +29,47 @@ const animatedCounts = reactive({
   plugins: 0,
 });
 
-function animateCounter(target: number, key: keyof typeof animatedCounts) {
-  if (target === 0) {
-    animatedCounts[key] = 0;
-    return;
-  }
+interface ActivityStats {
+  projects: number;
+  sessions: number;
+  totalMessages: number;
+  memoryFiles: number;
+}
+
+const activityStats = ref<ActivityStats>({
+  projects: 0,
+  sessions: 0,
+  totalMessages: 0,
+  memoryFiles: 0,
+});
+
+const animatedActivity = reactive({
+  projects: 0,
+  sessions: 0,
+  totalMessages: 0,
+  memoryFiles: 0,
+});
+
+function animateValue(target: number, setter: (v: number) => void) {
+  if (target === 0) { setter(0); return; }
   const duration = 600;
   const startTime = performance.now();
   function tick(now: number) {
     const elapsed = now - startTime;
     const progress = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
-    animatedCounts[key] = Math.round(eased * target);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    setter(Math.round(eased * target));
     if (progress < 1) requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
+}
+
+function animateCounter(target: number, key: keyof typeof animatedCounts) {
+  animateValue(target, (v) => (animatedCounts[key] = v));
+}
+
+function animateActivity(target: number, key: keyof typeof animatedActivity) {
+  animateValue(target, (v) => (animatedActivity[key] = v));
 }
 
 onMounted(async () => {
@@ -84,6 +110,19 @@ onMounted(async () => {
 
   try {
     suggestions.value = await $fetch<Suggestion[]>("/api/suggestions");
+  } catch {
+    // Non-critical
+  }
+
+  try {
+    const stats = await $fetch<ActivityStats>("/api/stats/activity");
+    activityStats.value = stats;
+    nextTick(() => {
+      animateActivity(stats.projects, "projects");
+      animateActivity(stats.sessions, "sessions");
+      animateActivity(stats.totalMessages, "totalMessages");
+      animateActivity(stats.memoryFiles, "memoryFiles");
+    });
   } catch {
     // Non-critical
   }
@@ -138,6 +177,37 @@ const hasContent = computed(
     plugins.value.length > 0,
 );
 
+const activityItems = computed(() => [
+  {
+    key: "projects",
+    to: "/project-artifacts",
+    count: animatedActivity.projects,
+    label: "Projects",
+    icon: "i-lucide-folder",
+  },
+  {
+    key: "sessions",
+    to: "/cli",
+    count: animatedActivity.sessions,
+    label: "Sessions",
+    icon: "i-lucide-message-square",
+  },
+  {
+    key: "totalMessages",
+    to: "/cli",
+    count: animatedActivity.totalMessages,
+    label: "Messages",
+    icon: "i-lucide-messages-square",
+  },
+  {
+    key: "memoryFiles",
+    to: null,
+    count: animatedActivity.memoryFiles,
+    label: "Memory Files",
+    icon: "i-lucide-brain",
+  },
+]);
+
 const statItems = computed(() => [
   {
     key: "agents" as const,
@@ -175,7 +245,45 @@ const statItems = computed(() => [
     <PageHeader title="Dashboard" />
 
     <div class="px-6 py-5 stagger-section space-y-5">
-      <!-- Hero stat bar -->
+      <!-- Activity stats row (row 1) -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <template v-for="item in activityItems" :key="item.key">
+          <NuxtLink
+            v-if="item.to"
+            :to="item.to"
+            class="relative rounded-xl p-5 focus-ring hover-stat overflow-hidden group bg-card"
+          >
+            <div
+              class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+              style="background: radial-gradient(ellipse at top left, var(--accent-muted) 0%, transparent 60%);"
+            />
+            <div class="relative">
+              <div class="flex items-center gap-2 mb-3">
+                <UIcon
+                  :name="item.icon"
+                  class="size-4 text-meta group-hover:text-[var(--accent)] transition-colors duration-200"
+                />
+                <span class="text-[12px] font-medium text-label">{{ item.label }}</span>
+              </div>
+              <span class="stat-number counter-animate">{{ item.count.toLocaleString() }}</span>
+            </div>
+          </NuxtLink>
+          <div
+            v-else
+            class="relative rounded-xl p-5 overflow-hidden bg-card"
+          >
+            <div class="relative">
+              <div class="flex items-center gap-2 mb-3">
+                <UIcon :name="item.icon" class="size-4 text-meta" />
+                <span class="text-[12px] font-medium text-label">{{ item.label }}</span>
+              </div>
+              <span class="stat-number counter-animate">{{ item.count.toLocaleString() }}</span>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Config stats row (row 2) -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <NuxtLink
           v-for="item in statItems"
