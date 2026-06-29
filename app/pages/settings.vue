@@ -469,6 +469,28 @@ const plugins = computed(() => {
 
 const charCount = computed(() => rawJson.value.length)
 const lineCount = computed(() => rawJson.value.split('\n').length)
+
+// ---- Cleanup empty sessions ----
+const cleaningUp = ref(false)
+
+async function cleanupEmptySessions(projectName?: string) {
+  cleaningUp.value = true
+  try {
+    const res = await $fetch<{ deleted: number }>('/api/projects/cleanup-empty', {
+      method: 'POST',
+      body: projectName ? { projectName } : {},
+    })
+    if (res.deleted > 0) {
+      toast.add({ title: `Removed ${res.deleted} empty session${res.deleted === 1 ? '' : 's'}`, color: 'success' })
+    } else {
+      toast.add({ title: 'No empty sessions found', color: 'neutral' })
+    }
+  } catch (e: any) {
+    toast.add({ title: 'Cleanup failed', description: e.message, color: 'error' })
+  } finally {
+    cleaningUp.value = false
+  }
+}
 </script>
 
 <template>
@@ -984,6 +1006,23 @@ const lineCount = computed(() => rawJson.value.split('\n').length)
             </div>
           </div>
         </template>
+      </div>
+
+      <!-- Session Cleanup -->
+      <div class="rounded-xl p-5 space-y-3 bg-card">
+        <div class="flex items-center gap-2">
+          <UIcon name="i-lucide-trash-2" class="size-4" style="color: var(--text-secondary)" />
+          <h3 class="text-section-title">Session Cleanup</h3>
+        </div>
+        <p class="text-[12px] text-meta">Remove empty session files (0 bytes) across all Claude Code projects.</p>
+        <UButton
+          label="Clean up empty sessions"
+          icon="i-lucide-trash-2"
+          size="sm"
+          variant="soft"
+          :loading="cleaningUp"
+          @click="cleanupEmptySessions()"
+        />
       </div>
 
     </div>

@@ -193,6 +193,28 @@ function getArtState(name: string) {
 
 const configProject = ref<string | null>(null)
 const configSubPanel = ref<'menu' | 'artifacts'>('menu')
+const cleaningProject = ref(false)
+const toast = useToast()
+
+async function cleanupProjectSessions(projectName: string) {
+  cleaningProject.value = true
+  try {
+    const res = await $fetch<{ deleted: number }>('/api/projects/cleanup-empty', {
+      method: 'POST',
+      body: { projectName },
+    })
+    if (res.deleted > 0) {
+      toast.add({ title: `Removed ${res.deleted} empty session${res.deleted === 1 ? '' : 's'}`, color: 'success' })
+      await loadProjectSessions(projectName)
+    } else {
+      toast.add({ title: 'No empty sessions found', color: 'neutral' })
+    }
+  } catch (e: any) {
+    toast.add({ title: 'Cleanup failed', description: e.message, color: 'error' })
+  } finally {
+    cleaningProject.value = false
+  }
+}
 
 const route = useRoute()
 
@@ -512,6 +534,20 @@ defineExpose({ refreshProject: loadProjectSessions })
               <div class="text-[10px]" style="color: var(--text-tertiary);">{{ item.desc }}</div>
             </div>
             <UIcon name="i-lucide-chevron-right" class="size-3.5 ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style="color: var(--text-tertiary);" />
+          </button>
+          <!-- Cleanup empty sessions -->
+          <button
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all hover-bg group disabled:opacity-50"
+            :disabled="cleaningProject"
+            @click="configProject && cleanupProjectSessions(configProject)"
+          >
+            <div class="size-8 rounded-lg flex items-center justify-center shrink-0" style="background: var(--surface-raised);">
+              <UIcon :name="cleaningProject ? 'i-lucide-loader-2' : 'i-lucide-trash-2'" class="size-4" :class="{ 'animate-spin': cleaningProject }" style="color: var(--text-tertiary);" />
+            </div>
+            <div class="min-w-0">
+              <div class="text-[12px] font-medium" style="color: var(--text-primary);">Clean Empty Sessions</div>
+              <div class="text-[10px]" style="color: var(--text-tertiary);">Remove empty session files</div>
+            </div>
           </button>
         </template>
       </div>

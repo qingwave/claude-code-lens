@@ -9,9 +9,35 @@ interface ClaudeCodeProject {
   sessionCount: number
 }
 
-defineProps<{
+const props = defineProps<{
   project: ClaudeCodeProject
 }>()
+
+const emit = defineEmits<{ cleaned: [] }>()
+const toast = useToast()
+const cleaning = ref(false)
+
+async function cleanupEmpty(e: MouseEvent) {
+  e.preventDefault()
+  e.stopPropagation()
+  cleaning.value = true
+  try {
+    const res = await $fetch<{ deleted: number }>('/api/projects/cleanup-empty', {
+      method: 'POST',
+      body: { projectName: props.project.name },
+    })
+    if (res.deleted > 0) {
+      toast.add({ title: `Removed ${res.deleted} empty session${res.deleted === 1 ? '' : 's'}`, color: 'success' })
+      emit('cleaned')
+    } else {
+      toast.add({ title: 'No empty sessions', color: 'neutral' })
+    }
+  } catch (err: any) {
+    toast.add({ title: 'Cleanup failed', description: err.message, color: 'error' })
+  } finally {
+    cleaning.value = false
+  }
+}
 </script>
 
 <template>
@@ -62,6 +88,16 @@ defineProps<{
           <UIcon name="i-lucide-terminal-square" class="size-3" />
           CLI
         </NuxtLink>
+        <button
+          class="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-50"
+          style="background: var(--surface-raised); color: var(--text-tertiary); border: 1px solid var(--border-subtle);"
+          title="Clean up empty sessions"
+          :disabled="cleaning"
+          @click="cleanupEmpty"
+        >
+          <UIcon :name="cleaning ? 'i-lucide-loader-2' : 'i-lucide-trash-2'" class="size-3" :class="{ 'animate-spin': cleaning }" />
+          Clean
+        </button>
         <span class="text-[10px]" style="color: var(--text-tertiary);">
           {{ formatRelativeTime(project.lastActivity) || 'No activity' }}
         </span>
