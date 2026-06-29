@@ -352,6 +352,7 @@ export function useChatV2Handler() {
       permissionMode?: PermissionMode
       model?: string
       effort?: EffortLevel
+      maxTurns?: number
       outputStyleId?: string
       images?: string[]
     } = {}
@@ -389,6 +390,7 @@ export function useChatV2Handler() {
       permissionMode?: PermissionMode
       model?: string
       effort?: EffortLevel
+      maxTurns?: number
       outputStyleId?: string
       images?: string[]
     } = {}
@@ -407,6 +409,7 @@ export function useChatV2Handler() {
       permissionMode: options.permissionMode || permissions.permissionMode.value,
       model: options.model,
       effort: options.effort,
+      maxTurns: options.maxTurns,
       outputStyleId: options.outputStyleId,
       images: options.images,
     }
