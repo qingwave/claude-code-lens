@@ -8,15 +8,86 @@ const { commands } = useCommands()
 const { plugins } = usePlugins()
 const { skills } = useSkills()
 
-const open = ref(false)
+const open = defineModel<boolean>('open', { default: false })
 const query = ref('')
 const selectedIndex = ref(0)
 
-const results = computed(() => {
+type ResultItem = {
+  type: string
+  label: string
+  sublabel: string
+  to: string
+  icon: string
+  color?: string
+  model?: string
+}
+
+// Remote search results (projects + sessions)
+const remoteResults = ref<ResultItem[]>([])
+const isSearching = ref(false)
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+async function fetchRemote(q: string) {
+  if (!q.trim()) {
+    remoteResults.value = []
+    return
+  }
+  isSearching.value = true
+  try {
+    const data = await $fetch<{
+      projects: { name: string; displayName: string; sessionCount: number; lastActivity?: string }[]
+      sessions: { sessionId: string; summary: string; projectName: string; projectDisplayName: string; lastActivity: string }[]
+    }>(`/api/search?q=${encodeURIComponent(q)}`)
+
+    const items: ResultItem[] = []
+
+    for (const p of data.projects) {
+      items.push({
+        type: 'Project',
+        label: p.displayName,
+        sublabel: `${p.sessionCount} sessions`,
+        to: `/cli/project/${encodeURIComponent(p.name)}`,
+        icon: 'i-lucide-folder',
+      })
+    }
+
+    for (const s of data.sessions) {
+      items.push({
+        type: 'Session',
+        label: s.summary,
+        sublabel: s.projectDisplayName,
+        to: `/cli/project/${encodeURIComponent(s.projectName)}/session/${s.sessionId}`,
+        icon: 'i-lucide-message-square',
+      })
+    }
+
+    remoteResults.value = items
+  } catch {
+    remoteResults.value = []
+  } finally {
+    isSearching.value = false
+  }
+}
+
+watch(query, (q) => {
+  selectedIndex.value = 0
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => fetchRemote(q), 200)
+})
+
+watch(open, (val) => {
+  if (!val) {
+    query.value = ''
+    remoteResults.value = []
+    if (debounceTimer) clearTimeout(debounceTimer)
+  }
+})
+
+const localResults = computed(() => {
   const q = query.value.toLowerCase().trim()
   if (!q) return []
 
-  const items: { type: string; label: string; sublabel: string; to: string; icon: string; color?: string; model?: string }[] = []
+  const items: ResultItem[] = []
 
   for (const agent of agents.value) {
     if (agent.frontmatter.name.toLowerCase().includes(q) || agent.frontmatter.description?.toLowerCase().includes(q)) {
@@ -68,10 +139,13 @@ const results = computed(() => {
     }
   }
 
-  return items.slice(0, 10)
+  return items
 })
 
-watch(query, () => { selectedIndex.value = 0 })
+const results = computed(() => {
+  const combined = [...localResults.value, ...remoteResults.value]
+  return combined.slice(0, 12)
+})
 
 function navigate(to: string) {
   router.push(to)
@@ -112,11 +186,12 @@ if (import.meta.client) {
       <div style="min-height: 120px; max-height: 420px;" class="bg-overlay rounded-xl overflow-hidden flex flex-col">
         <!-- Search input -->
         <div class="flex items-center gap-3 px-4 py-3" style="border-bottom: 1px solid var(--border-subtle);">
-          <UIcon name="i-lucide-search" class="size-4 shrink-0 text-meta" />
+          <UIcon v-if="!isSearching" name="i-lucide-search" class="size-4 shrink-0 text-meta" />
+          <UIcon v-else name="i-lucide-loader-2" class="size-4 shrink-0 text-meta animate-spin" />
           <input
             v-model="query"
             class="flex-1 bg-transparent text-[13px] outline-none"
-            placeholder="Search agents, commands, skills, plugins..."
+            placeholder="Search agents, commands, skills, projects, sessions..."
             autofocus
             @keydown="onKeydown"
           />
@@ -125,7 +200,7 @@ if (import.meta.client) {
 
         <!-- Results -->
         <div class="flex-1 overflow-auto py-1">
-          <div v-if="query && !results.length" class="flex flex-col items-center justify-center py-8">
+          <div v-if="query && !results.length && !isSearching" class="flex flex-col items-center justify-center py-8">
             <p class="text-[13px] text-label">No results found</p>
           </div>
 

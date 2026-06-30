@@ -493,7 +493,7 @@ function badgeFor(to: string) {
         </div>
       </main>
     </div>
-    <GlobalSearch />
+    <GlobalSearch v-model:open="showSearch" />
     <ChatPanel v-model:open="chatOpen" />
     <FileEditorSidebar v-if="!route.path.startsWith('/cli')" />
   </UApp>
