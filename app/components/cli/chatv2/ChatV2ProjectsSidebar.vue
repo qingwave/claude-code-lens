@@ -404,7 +404,7 @@ defineExpose({ refreshProject: loadProjectSessions })
         <!-- Config back button -->
         <button
           v-if="configProject"
-          class="p-1.5 rounded-lg hover-bg transition-all shrink-0"
+          class="size-7 flex items-center justify-center rounded-lg hover-bg transition-all shrink-0"
           style="background: var(--surface-raised);"
           title="Back to sessions"
           @click="closeConfig"
@@ -425,9 +425,8 @@ defineExpose({ refreshProject: loadProjectSessions })
       </template>
 
       <button
-        class="p-1.5 rounded-lg hover-bg transition-all shrink-0"
+        class="size-7 flex items-center justify-center rounded-lg hover-bg transition-all shrink-0"
         :class="{ 'ml-auto': !collapsed }"
-        style="background: var(--surface-raised);"
         @click="emit('toggleCollapse')"
         :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
       >
@@ -558,7 +557,7 @@ defineExpose({ refreshProject: loadProjectSessions })
         <div class="shrink-0 px-3 py-2 border-b flex items-center gap-2" style="border-color: var(--border-subtle);">
           <template v-if="!isChoosingFolder">
             <button
-              class="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium transition-all"
+              class="flex-1 h-8 flex items-center gap-1.5 px-2.5 rounded-lg text-[12px] font-medium transition-all"
               style="background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.2);"
               @mouseenter="($event.currentTarget as HTMLElement).style.background = 'rgba(229,169,62,0.18)'"
               @mouseleave="($event.currentTarget as HTMLElement).style.background = 'var(--accent-muted)'"
@@ -568,7 +567,7 @@ defineExpose({ refreshProject: loadProjectSessions })
               <span>New Chat</span>
             </button>
             <button
-              class="p-1.5 rounded-lg transition-all hover-bg"
+              class="size-8 flex items-center justify-center rounded-lg transition-all hover-bg"
               style="color: var(--text-tertiary);"
               title="Refresh"
               :disabled="isRefreshing"
@@ -587,8 +586,8 @@ defineExpose({ refreshProject: loadProjectSessions })
               @keyup.enter="confirmFolder"
               @keyup.escape="cancelFolderSelection"
             />
-            <button class="px-2 py-1.5 rounded-lg text-[11px] font-medium shrink-0" style="background: var(--accent); color: white;" @click="confirmFolder">Go</button>
-            <button class="p-1.5 rounded-lg hover-bg shrink-0" style="color: var(--text-tertiary);" @click="cancelFolderSelection">
+            <button class="h-8 px-3 flex items-center justify-center rounded-lg text-[11px] font-medium shrink-0" style="background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.3);" @click="confirmFolder">Go</button>
+            <button class="size-8 flex items-center justify-center rounded-lg hover-bg shrink-0" style="color: var(--text-tertiary);" @click="cancelFolderSelection">
               <UIcon name="i-lucide-x" class="size-3.5" />
             </button>
           </template>
@@ -793,17 +792,21 @@ defineExpose({ refreshProject: loadProjectSessions })
     <template v-else>
       <div class="flex-1 flex flex-col items-center gap-2 pt-3">
         <button
-          class="p-2 rounded-lg transition-all"
-          style="background: var(--accent);"
+          class="size-8 flex items-center justify-center rounded-lg transition-all"
+          style="background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.3);"
           title="New Chat"
-          @click="handleNewChat()"
+          @click="handleNewChat(selectedProject?.path, selectedProject?.displayName)"
         >
-          <UIcon name="i-lucide-plus" class="size-4" style="color: white;" />
+          <UIcon name="i-lucide-plus" class="size-4" />
         </button>
         <button
-          class="p-2 rounded-lg transition-all hover-bg"
+          class="size-8 flex items-center justify-center rounded-lg transition-all hover-bg"
           style="background: var(--surface-raised);"
-          title="Claude Code History"
+          title="View sessions"
+          @click="() => {
+            if (selectedProject) getProjState(selectedProject.name).expanded = true
+            emit('toggleCollapse')
+          }"
         >
           <UIcon name="i-lucide-history" class="size-4" style="color: var(--text-secondary);" />
         </button>
