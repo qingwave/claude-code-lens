@@ -120,8 +120,77 @@ const activeRightTab = ref<'context' | 'explorer' | 'git' | 'preview'>('context'
 const isCreatingSession = ref(false)
 const isInputFocused = ref(false)
 
+// 面板内分割：左侧树宽度，可拖拽
+const panelTreeWidth = ref(220)
+const isDraggingPanelTree = ref(false)
+const panelTreeDragStartX = ref(0)
+const panelTreeDragStartWidth = ref(0)
+
+// 面板内当前打开的文件（explorer/git 分割视图用）
+const panelOpenFile = ref<{ path: string; kind: 'file' | 'diff'; staged?: boolean } | null>(null)
+const panelDiffResult = ref<any | null>(null)
+const panelDiffPending = ref(false)
+const panelFileContent = ref<string | null>(null)
+const panelFileLoading = ref(false)
+
+function onPanelTreeDragStart(e: MouseEvent) {
+  isDraggingPanelTree.value = true
+  panelTreeDragStartX.value = e.clientX
+  panelTreeDragStartWidth.value = panelTreeWidth.value
+  document.addEventListener('mousemove', onPanelTreeDragMove)
+  document.addEventListener('mouseup', onPanelTreeDragEnd)
+  e.preventDefault()
+}
+function onPanelTreeDragMove(e: MouseEvent) {
+  if (!isDraggingPanelTree.value) return
+  const delta = e.clientX - panelTreeDragStartX.value
+  panelTreeWidth.value = Math.min(380, Math.max(140, panelTreeDragStartWidth.value + delta))
+}
+function onPanelTreeDragEnd() {
+  isDraggingPanelTree.value = false
+  document.removeEventListener('mousemove', onPanelTreeDragMove)
+  document.removeEventListener('mouseup', onPanelTreeDragEnd)
+}
+
+async function openPanelFile(filePath: string) {
+  panelOpenFile.value = { path: filePath, kind: 'file' }
+  panelDiffResult.value = null
+  panelFileContent.value = null
+  panelFileLoading.value = true
+  try {
+    const data = await $fetch<{ content: string }>('/api/files', {
+      query: { path: filePath }
+    })
+    panelFileContent.value = data.content
+  } catch {
+    panelFileContent.value = null
+  } finally {
+    panelFileLoading.value = false
+  }
+}
+
+async function openPanelDiff(filePath: string, staged: boolean) {
+  const projectName = urlProjectName.value || localWorkingDir.value
+  if (!projectName) return
+  panelOpenFile.value = { path: filePath, kind: 'diff', staged }
+  panelDiffResult.value = null
+  panelDiffPending.value = true
+  try {
+    const result = await $fetch<any>(
+      `/api/projects/${encodeURIComponent(projectName)}/git/diff`,
+      { query: { file: filePath, staged: String(staged) } }
+    )
+    panelDiffResult.value = result
+    gitPanelRef.value?.cacheDiff(result, staged)
+  } catch {
+    panelDiffResult.value = { file: filePath, hunks: [], addCount: 0, removeCount: 0, error: 'Failed to load diff' }
+  } finally {
+    panelDiffPending.value = false
+  }
+}
+
 // Context details sidebar drag-to-resize
-const contextSidebarWidth = ref(500)
+const contextSidebarWidth = ref(680)
 const isDraggingContextSidebar = ref(false)
 const dragStartX = ref(0)
 const dragStartWidth = ref(0)
@@ -185,6 +254,8 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', onContextSidebarDragEnd)
   document.removeEventListener('mousemove', onLeftSidebarDragMove)
   document.removeEventListener('mouseup', onLeftSidebarDragEnd)
+  document.removeEventListener('mousemove', onPanelTreeDragMove)
+  document.removeEventListener('mouseup', onPanelTreeDragEnd)
   document.removeEventListener('click', handleEffortClickOutside)
   document.removeEventListener('click', handleMaxTurnsClickOutside)
 })
@@ -1467,14 +1538,11 @@ async function handleSessionDeleted(payload: { projectName: string; sessionId: s
   }
 }
 
-const { openFile, closeEditor, state: fileEditorState } = useFileEditor()
+const { openFile, openDiff, closeEditor, state: fileEditorState } = useFileEditor()
 
-// Handle file open (from tool use clicks or sidebar)
+// 从消息中点击文件/图片 → Preview tab
 function handleOpenFile(filePath: string) {
-  console.log('[ChatV2] Open file:', filePath)
   if (!filePath) return
-
-  // If path is relative, try to resolve it against project path
   let absolutePath = filePath
   if (!filePath.startsWith('/')) {
     const projectPath = selectedProjectPath.value
@@ -1482,17 +1550,21 @@ function handleOpenFile(filePath: string) {
       absolutePath = projectPath.endsWith('/') ? `${projectPath}${filePath}` : `${projectPath}/${filePath}`
     }
   }
-
   openFile(absolutePath)
-  
-  // Switch to preview tab and ensure sidebar is open
   activeRightTab.value = 'preview'
   showRightSidebar.value = true
 }
 
+// Ref to the Git panel so we can push diff stats back to it after fetch
+const gitPanelRef = ref<{ cacheDiff: (diff: any, staged: boolean) => void } | null>(null)
+
+// Git 面板点击文件 → 在面板内右侧展示 diff
+async function handleOpenDiff(filePath: string, staged: boolean) {
+  await openPanelDiff(filePath, staged)
+}
+
 function handleClosePreview() {
   closeEditor()
-  // If we were on preview tab, switch to explorer
   if (activeRightTab.value === 'preview') {
     activeRightTab.value = 'explorer'
   }
@@ -1549,7 +1621,7 @@ function handleClosePreview() {
 
         <!-- Settings Landing (no specific panel selected) -->
         <template v-if="!activeConfigPanel">
-          <div class="shrink-0 border-b h-14 flex items-center gap-3 px-4" style="border-color: var(--border-subtle); background: var(--surface-base);">
+          <div class="shrink-0 border-b h-14 flex items-center gap-3 px-4" style="border-color: var(--border-subtle); background: var(--surface-overlay);">
             <UIcon name="i-lucide-settings-2" class="size-4" style="color: var(--accent);" />
             <h3 class="text-[14px] font-semibold" style="color: var(--text-primary);">Project Settings</h3>
             <span class="text-[11px] font-mono" style="color: var(--text-tertiary);">
@@ -1572,7 +1644,7 @@ function handleClosePreview() {
         <!-- Specific Config Panel -->
         <template v-else>
         <!-- Config Header -->
-        <div class="shrink-0 border-b h-14 flex items-center gap-3 px-4" style="border-color: var(--border-subtle); background: var(--surface-base);">
+        <div class="shrink-0 border-b h-14 flex items-center gap-3 px-4" style="border-color: var(--border-subtle); background: var(--surface-overlay);">
           <button
             class="p-1.5 rounded-lg hover-bg transition-all"
             style="background: var(--surface-raised);"
@@ -1741,7 +1813,7 @@ function handleClosePreview() {
       <div
         :key="urlSessionId || 'live'"
         class="shrink-0 border-b relative z-20"
-        style="border-color: var(--border-subtle); background: var(--surface-base);"
+        style="border-color: var(--border-subtle); background: var(--surface-overlay);"
       >
         <div class="flex items-center justify-between px-4 h-14">
           <div class="flex items-center gap-2 min-w-0 flex-1">
@@ -1906,7 +1978,7 @@ function handleClosePreview() {
           <div
             v-if="showSearch"
             class="shrink-0 flex items-center gap-2 px-4 py-2 border-b"
-            style="border-color: var(--border-subtle); background: var(--surface-base);"
+            style="border-color: var(--border-subtle); background: var(--surface-overlay);"
           >
             <UIcon name="i-lucide-search" class="size-3.5 shrink-0" style="color: var(--text-tertiary);" />
             <input
@@ -2044,7 +2116,7 @@ function handleClosePreview() {
       <div
         v-if="(isLiveChat || currentSessionId || (viewMode === 'history' && urlSessionId)) && !isLoadingHistoryWithDelay && !isCreatingSession"
         class="shrink-0 border-t"
-        style="border-color: var(--border-subtle); background: var(--surface-base);"
+        style="border-color: var(--border-subtle); background: var(--surface-overlay);"
       >
         <!-- Chat Input with controls in the hints slot -->
         <ChatV2Input
@@ -2265,15 +2337,15 @@ function handleClosePreview() {
                 <UIcon name="i-lucide-git-branch" class="size-4" />
                 <span>Git</span>
               </button>
-              <div 
+              <div
                 class="flex items-center gap-1 border-b-2 transition-all text-[13px] font-semibold whitespace-nowrap"
-                :style="{ 
+                :style="{
                   borderColor: activeRightTab === 'preview' ? 'var(--accent)' : 'transparent',
                   background: activeRightTab === 'preview' ? 'var(--surface-raised)' : 'transparent',
                   opacity: fileEditorState.isOpen ? 1 : 0.4
                 }"
               >
-                <button 
+                <button
                   class="pl-4 pr-1 py-4 flex items-center gap-2"
                   :style="{ color: activeRightTab === 'preview' ? 'var(--text-primary)' : 'var(--text-tertiary)' }"
                   :disabled="!fileEditorState.isOpen"
@@ -2282,7 +2354,7 @@ function handleClosePreview() {
                   <UIcon name="i-lucide-eye" class="size-4" />
                   <span>Preview</span>
                 </button>
-                <button 
+                <button
                   v-if="fileEditorState.isOpen"
                   class="mr-2 p-1 rounded-md hover:bg-[var(--surface-hover)] text-meta transition-colors"
                   @click.stop="handleClosePreview"
@@ -2303,18 +2375,98 @@ function handleClosePreview() {
           <!-- Tab Content -->
           <div class="flex-1 overflow-hidden flex flex-col">
             <ChatV2ContextDetails v-if="activeRightTab === 'context'" :metrics="contextMonitor.metrics.value" />
-            <ChatV2FileTree 
-              v-else-if="activeRightTab === 'explorer'" 
-              :project-name="urlProjectName || localWorkingDir" 
-              @open-file="handleOpenFile"
-            />
-            <ChatV2GitPanel 
-              v-else-if="activeRightTab === 'git'" 
-              :project-name="urlProjectName || localWorkingDir" 
-              @open-file="handleOpenFile"
-            />
+
+            <!-- Explorer：左侧文件树 + 右侧文件内容 -->
+            <div v-else-if="activeRightTab === 'explorer'" class="flex-1 flex min-h-0 overflow-hidden">
+              <!-- 左侧文件树 -->
+              <div
+                class="flex flex-col overflow-hidden shrink-0 border-r"
+                :style="{ width: panelTreeWidth + 'px', borderColor: 'var(--border-subtle)', userSelect: isDraggingPanelTree ? 'none' : undefined }"
+              >
+                <ChatV2FileTree
+                  :project-name="urlProjectName || localWorkingDir"
+                  @open-file="openPanelFile"
+                />
+              </div>
+              <!-- 拖拽分割线 -->
+              <div
+                class="w-1 shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors z-10"
+                :class="isDraggingPanelTree ? 'bg-accent/40' : ''"
+                @mousedown="onPanelTreeDragStart"
+              />
+              <!-- 右侧内容区 -->
+              <div class="flex-1 min-w-0 flex flex-col overflow-hidden" style="background: var(--surface-overlay);">
+                <!-- 空状态 -->
+                <div v-if="!panelOpenFile || panelOpenFile.kind !== 'file'" class="flex-1 flex flex-col items-center justify-center gap-2" style="background: var(--surface-overlay);">
+                  <UIcon name="i-lucide-file-code" class="size-8 opacity-20" style="color: var(--text-tertiary);" />
+                  <span class="text-[11px]" style="color: var(--text-tertiary);">选择文件查看内容</span>
+                </div>
+                <!-- 加载中 -->
+                <div v-else-if="panelFileLoading" class="flex-1 flex items-center justify-center" style="background: var(--surface-overlay);">
+                  <UIcon name="i-lucide-loader-2" class="size-5 animate-spin mr-2" style="color: var(--text-tertiary);" />
+                  <span class="text-[11px]" style="color: var(--text-tertiary);">Loading…</span>
+                </div>
+                <!-- 文件内容 -->
+                <template v-else-if="panelOpenFile?.kind === 'file'">
+                  <div class="shrink-0 px-3 py-2 border-b flex items-center gap-2" style="border-color: var(--border-subtle); background: var(--surface-raised);">
+                    <UIcon name="i-lucide-file-code" class="size-3.5 shrink-0" style="color: var(--accent);" />
+                    <span class="text-[11px] font-mono truncate" style="color: var(--text-primary);">{{ panelOpenFile.path.split('/').pop() }}</span>
+                    <span class="text-[10px] font-mono truncate opacity-50 min-w-0" style="color: var(--text-tertiary);">{{ panelOpenFile.path.replace(/\/[^/]+$/, '/') }}</span>
+                  </div>
+                  <PanelFileContent :file-path="panelOpenFile.path" :content="panelFileContent" />
+                </template>
+              </div>
+            </div>
+
+            <!-- Git：左侧变更列表 + 右侧 diff 内容 -->
+            <div v-else-if="activeRightTab === 'git'" class="flex-1 flex min-h-0 overflow-hidden">
+              <!-- 左侧 git 列表 -->
+              <div
+                class="flex flex-col overflow-hidden shrink-0 border-r"
+                :style="{ width: panelTreeWidth + 'px', borderColor: 'var(--border-subtle)', userSelect: isDraggingPanelTree ? 'none' : undefined }"
+              >
+                <ChatV2GitPanel
+                  ref="gitPanelRef"
+                  :project-name="urlProjectName || localWorkingDir"
+                  @open-diff="handleOpenDiff"
+                />
+              </div>
+              <!-- 拖拽分割线 -->
+              <div
+                class="w-1 shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors z-10"
+                :class="isDraggingPanelTree ? 'bg-accent/40' : ''"
+                @mousedown="onPanelTreeDragStart"
+              />
+              <!-- 右侧 diff 内容区 -->
+              <div class="flex-1 min-w-0 flex flex-col overflow-hidden" style="background: var(--surface-overlay);">
+                <!-- 空状态 -->
+                <div v-if="!panelOpenFile || panelOpenFile.kind !== 'diff'" class="flex-1 flex flex-col items-center justify-center gap-2" style="background: var(--surface-overlay);">
+                  <UIcon name="i-lucide-git-branch" class="size-8 opacity-20" style="color: var(--text-tertiary);" />
+                  <span class="text-[11px]" style="color: var(--text-tertiary);">选择文件查看 diff</span>
+                </div>
+                <!-- 加载中 -->
+                <div v-else-if="panelDiffPending" class="flex-1 flex items-center justify-center" style="background: var(--surface-overlay);">
+                  <UIcon name="i-lucide-loader-2" class="size-5 animate-spin mr-2" style="color: var(--text-tertiary);" />
+                  <span class="text-[11px]" style="color: var(--text-tertiary);">Loading diff…</span>
+                </div>
+                <!-- diff 内容 -->
+                <template v-else-if="panelOpenFile?.kind === 'diff' && panelDiffResult">
+                  <div class="shrink-0 px-3 py-2 border-b flex items-center gap-2" style="border-color: var(--border-subtle); background: var(--surface-raised);">
+                    <UIcon name="i-lucide-git-branch" class="size-3.5 shrink-0" style="color: var(--accent);" />
+                    <span class="text-[11px] font-mono truncate" style="color: var(--text-primary);">{{ panelOpenFile.path.split('/').pop() }}</span>
+                    <span class="text-[10px] font-mono truncate opacity-50 min-w-0 flex-1" style="color: var(--text-tertiary);">{{ panelOpenFile.path.replace(/\/[^/]+$/, '/') }}</span>
+                    <span class="shrink-0 text-[10px] font-mono tabular-nums" style="color: #22c55e;">+{{ panelDiffResult.addCount }}</span>
+                    <span class="shrink-0 text-[10px] font-mono tabular-nums" style="color: #ef4444;">-{{ panelDiffResult.removeCount }}</span>
+                  </div>
+                  <div class="flex-1 overflow-y-auto">
+                    <DiffView :diff="panelDiffResult" :loading="false" />
+                  </div>
+                </template>
+              </div>
+            </div>
+
             <div v-else-if="activeRightTab === 'preview'" class="flex-1 overflow-hidden flex flex-col">
-               <FileEditorSidebarContent />
+              <FileEditorSidebarContent />
             </div>
           </div>
         </div>

@@ -40,21 +40,21 @@ const folderIcon = computed(() => {
 
 <template>
   <div>
-    <button 
+    <button
       class="w-full flex items-center gap-2 px-2 py-1 hover-bg rounded transition-colors text-left group"
       :style="{ paddingLeft: `${depth * 12 + 8}px` }"
       @click="handleClick"
     >
       <UIcon v-if="item.type === 'directory'" :name="fileIcon" class="size-3 text-tertiary" />
       <div v-else class="size-3 shrink-0" />
-      
-      <UIcon 
-        :name="item.type === 'directory' ? folderIcon : fileIcon" 
-        class="size-3.5 shrink-0" 
+
+      <UIcon
+        :name="item.type === 'directory' ? folderIcon : fileIcon"
+        class="size-3.5 shrink-0"
         :style="{ color: item.type === 'directory' ? 'var(--accent)' : 'var(--text-tertiary)' }"
       />
-      
-      <span class="text-[12px] truncate flex-1" :style="{ color: 'var(--text-secondary)' }">
+
+      <span class="text-[12px] truncate flex-1" style="color: var(--text-secondary);">
         {{ item.name }}
       </span>
     </button>
