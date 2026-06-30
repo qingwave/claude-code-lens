@@ -5,6 +5,12 @@ const route = useRoute()
 const toast = useToast()
 const projectName = route.params.projectName as string
 
+// Use cached projects list for immediate display name (avoids flash)
+const { projects } = useClaudeCodeHistory()
+const cachedDisplayName = computed(() =>
+  projects.value.find(p => p.name === projectName)?.displayName
+)
+
 interface ProjectArtifactsResponse {
   project: { name: string; path: string; displayName: string }
   agents: Agent[]
@@ -12,6 +18,8 @@ interface ProjectArtifactsResponse {
 }
 
 const { data, pending, error } = useFetch<ProjectArtifactsResponse>(`/api/project-artifacts/${encodeURIComponent(projectName)}/local`)
+
+const displayName = computed(() => data.value?.project.displayName || cachedDisplayName.value || projectName)
 
 // CLAUDE.md
 const claudeMdContent = ref('')
@@ -103,13 +111,13 @@ watch(() => data.value?.project?.path, (path) => {
 }, { immediate: true })
 
 useHead({
-  title: computed(() => data.value ? `${data.value.project.displayName} Artifacts | Agent Manager` : 'Project Artifacts')
+  title: computed(() => `${displayName.value} Artifacts | Agent Manager`)
 })
 </script>
 
 <template>
   <div class="h-full flex flex-col overflow-hidden">
-    <PageHeader :title="data?.project?.displayName || projectName">
+    <PageHeader :title="displayName">
       <template #trailing>
         <span class="text-[12px] text-meta">Project Artifacts</span>
       </template>
@@ -118,7 +126,7 @@ useHead({
           <NuxtLink
             :to="`/cli/project/${encodeURIComponent(projectName)}`"
             class="px-4 py-2 rounded-xl text-[13px] font-semibold transition-all flex items-center gap-2"
-            style="background: var(--accent); color: white;"
+            style="background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.25);"
           >
             <UIcon name="i-lucide-terminal-square" class="size-4" />
             Open in CLI

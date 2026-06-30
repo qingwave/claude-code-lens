@@ -68,7 +68,7 @@ useHead({
         <div class="flex items-center gap-3">
           <button
             class="px-4 py-2 rounded-xl text-[13px] font-semibold transition-all flex items-center gap-2"
-            style="background: var(--accent); color: white;"
+            style="background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.25);"
             @click="openAddModal"
           >
             <UIcon name="i-lucide-folder-plus" class="size-4" />

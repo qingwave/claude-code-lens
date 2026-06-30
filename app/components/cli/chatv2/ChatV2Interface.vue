@@ -1935,47 +1935,15 @@ function handleClosePreview() {
         <div
           ref="messagesContainerRef"
           class="h-full overflow-y-auto overflow-x-hidden"
+          :class="(viewMode === 'live' && !isLiveChat && !currentSessionId) ? 'flex items-center justify-center' : ''"
           :style="{
             background: 'var(--surface-base)',
             opacity: isInitialScroll ? 0 : 1
           }"
           @scroll="handleMessagesScroll"
         >
-          <!-- Content column - grows with available space -->
-          <div class="max-w-[1200px] mx-auto px-4 py-4 space-y-4 min-h-full min-w-0">
-
-            <!-- Disconnected Banner -->
-            <Transition
-              enter-active-class="transition duration-200 ease-out"
-              enter-from-class="opacity-0 -translate-y-2"
-              enter-to-class="opacity-100 translate-y-0"
-              leave-active-class="transition duration-150 ease-in"
-              leave-from-class="opacity-100 translate-y-0"
-              leave-to-class="opacity-0 -translate-y-2"
-            >
-              <div
-                v-if="!isConnected && (viewMode === 'live' || isContinuingHistory)"
-                class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-[12px]"
-                style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2);"
-              >
-                <UIcon name="i-lucide-wifi-off" class="size-4 shrink-0" style="color: #ef4444;" />
-                <span class="flex-1" style="color: var(--text-secondary);">
-                  <span class="font-medium" style="color: #ef4444;">Disconnected</span>
-                  — reconnecting automatically...
-                </span>
-                <button
-                  class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all hover:opacity-90 shrink-0"
-                  style="background: rgba(239, 68, 68, 0.15); color: #ef4444;"
-                  @click="connect()"
-                >
-                  Retry
-                </button>
-              </div>
-            </Transition>
-
-            <!-- Welcome / Select State -->
-            <div v-if="viewMode === 'live' && !isLiveChat && !currentSessionId" class="flex items-center justify-center h-full text-center">
-              <div class="max-w-md px-6">
+          <!-- Welcome / Select State (centered in the full scroll area) -->
+          <div v-if="viewMode === 'live' && !isLiveChat && !currentSessionId" class="text-center max-w-md px-6">
                 <component
                   :is="urlProjectName ? 'NuxtLink' : 'div'"
                   :to="urlProjectName ? `/project-artifacts/${encodeURIComponent(urlProjectName)}` : undefined"
@@ -1993,8 +1961,10 @@ function handleClosePreview() {
                 </p>
                 <div class="flex flex-col gap-3">
                   <button
-                    class="w-full py-2.5 rounded-xl font-medium transition-all flex items-center justify-center gap-2"
-                    style="background: var(--accent); color: white;"
+                    class="w-full py-3 rounded-2xl text-[13px] font-semibold transition-all flex items-center justify-center gap-2 press-scale"
+                    style="background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.3); box-shadow: 0 0 20px rgba(229,169,62,0.08);"
+                    @mouseenter="($event.currentTarget as HTMLElement).style.background = 'rgba(229,169,62,0.18)'"
+                    @mouseleave="($event.currentTarget as HTMLElement).style.background = 'var(--accent-muted)'"
                     @click="handleNewChat({ workingDir: localWorkingDir })"
                   >
                     <UIcon name="i-lucide-plus" class="size-4" />
@@ -2003,7 +1973,7 @@ function handleClosePreview() {
                   <NuxtLink
                     v-if="urlProjectName"
                     :to="`/project-artifacts/${encodeURIComponent(urlProjectName)}`"
-                    class="w-full py-2 rounded-xl font-medium transition-all flex items-center justify-center gap-2 hover-bg"
+                    class="w-full py-3 rounded-2xl text-[13px] font-semibold transition-all flex items-center justify-center gap-2 hover-bg"
                     style="color: var(--text-secondary); border: 1px solid var(--border-subtle);"
                   >
                     <UIcon name="i-lucide-box" class="size-4" />
@@ -2013,11 +1983,14 @@ function handleClosePreview() {
                     Browse your project history in the left sidebar
                   </p>
                 </div>
-              </div>
             </div>
 
+          <!-- Content column for messages (non-welcome states) -->
+          <template v-else>
+          <div class="max-w-[1200px] mx-auto px-4 py-4 space-y-4 min-h-full min-w-0">
+
             <!-- Empty state -->
-            <div v-else-if="!isLoadingHistoryWithDelay && !isCreatingSession && displayMessages.length === 0 && !isStreaming && !isLoadingClaudeCodeMessages" class="flex items-center justify-center h-full">
+            <div v-if="!isLoadingHistoryWithDelay && !isCreatingSession && displayMessages.length === 0 && !isStreaming && !isLoadingClaudeCodeMessages" class="flex items-center justify-center h-full">
               <div class="text-center max-w-md">
                 <div class="size-16 mx-auto mb-4 rounded-full flex items-center justify-center" style="background: var(--surface-raised);">
                   <UIcon :name="viewMode === 'history' ? 'i-lucide-history' : 'i-lucide-message-circle'" class="size-8" style="color: var(--text-secondary);" />
@@ -2063,6 +2036,7 @@ function handleClosePreview() {
 
             </template>
           </div>
+          </template>
         </div>
       </div>
 
