@@ -2059,7 +2059,7 @@ function handleClosePreview() {
 
           <!-- Content column for messages (non-welcome states) -->
           <template v-else>
-          <div class="max-w-[1200px] mx-auto px-4 py-4 space-y-4 min-h-full min-w-0">
+          <div class="max-w-[1200px] mx-auto pl-4 pr-8 py-4 space-y-4 min-h-full min-w-0">
 
             <!-- Empty state -->
             <div v-if="!isLoadingHistoryWithDelay && !isCreatingSession && displayMessages.length === 0 && !isStreaming && !isLoadingClaudeCodeMessages" class="flex items-center justify-center h-full">
@@ -2110,7 +2110,14 @@ function handleClosePreview() {
           </div>
           </template>
         </div>
-      </div>
+
+        <!-- TOC: teleports to body, tracks scroll container position -->
+        <ChatV2SessionToc
+          v-if="filteredMessages.length > 0"
+          :messages="filteredMessages"
+          :scroll-container="messagesContainerRef"
+        />
+      </div><!-- end Messages Area -->
 
       <!-- Input dock: input box + controls bar -->
       <div

@@ -107,6 +107,7 @@ function handleResend(content: string, images?: string[]) {
     <div
       v-for="group in messageGroups"
       :key="group.id"
+      :id="`msg-${group.id}`"
       class="message-group min-w-0"
     >
       <!-- User Message Group -->
