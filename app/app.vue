@@ -104,7 +104,7 @@ function badgeFor(to: string) {
           <NuxtLink to="/cli" class="flex items-center gap-2.5 flex-1 min-w-0 group/brand" v-if="!sidebarCollapsed">
             <div
               class="size-7 rounded-lg flex items-center justify-center relative shrink-0 transition-transform duration-200 group-hover/brand:scale-105"
-              style="background: linear-gradient(135deg, rgba(229, 169, 62, 0.18) 0%, rgba(229, 169, 62, 0.06) 100%); border: 1px solid rgba(229, 169, 62, 0.15);"
+              style="border: 1px solid var(--border-default);"
             >
               <UIcon name="i-lucide-bot" class="size-3.5" style="color: var(--accent);" />
             </div>
@@ -121,7 +121,7 @@ function badgeFor(to: string) {
           <button
             v-else
             class="size-7 rounded-lg flex items-center justify-center relative shrink-0 transition-all duration-150 focus-ring press-scale"
-            style="background: linear-gradient(135deg, rgba(229, 169, 62, 0.18) 0%, rgba(229, 169, 62, 0.06) 100%); border: 1px solid rgba(229, 169, 62, 0.15);"
+            style="border: 1px solid var(--border-default);"
             title="Expand sidebar"
             @click="sidebarCollapsed = false"
           >
@@ -250,7 +250,7 @@ function badgeFor(to: string) {
         </nav>
 
         <!-- Search shortcut -->
-        <div :class="sidebarCollapsed ? 'px-1.5 pb-2.5' : 'px-2.5 pb-2.5'">
+        <div :class="sidebarCollapsed ? 'px-1.5 pb-2.5' : 'px-2.5 pb-2.5'" style="border-top: 1px solid var(--border-subtle); padding-top: 0.5rem;">
           <button
             class="w-full flex items-center rounded-lg transition-all duration-150 focus-ring cursor-pointer press-scale"
             :class="sidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-2 px-3 py-2'"
