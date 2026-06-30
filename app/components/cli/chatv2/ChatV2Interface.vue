@@ -1800,14 +1800,14 @@ function handleClosePreview() {
 
               <!-- Project/Folder indicator in live mode -->
               <NuxtLink
-                v-if="localWorkingDir"
-                :to="urlProjectName ? `/cli/project/${encodeURIComponent(urlProjectName)}` : '/project-artifacts'"
+                v-if="localWorkingDir || urlProjectName"
+                :to="urlProjectName ? `/project-artifacts/${encodeURIComponent(urlProjectName)}` : '/project-artifacts'"
                 class="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium min-w-0 hover-bg transition-all"
                 style="background: var(--surface-raised); color: var(--text-secondary);"
-                :title="localWorkingDir"
+                :title="localWorkingDir || selectedProjectPath || ''"
               >
                 <UIcon :name="currentProjectDisplayName ? 'i-lucide-folder-root' : 'i-lucide-folder'" class="size-3 shrink-0" />
-                <span class="truncate">{{ currentProjectDisplayName || localWorkingDir.split('/').filter(Boolean).pop() || localWorkingDir }}</span>
+                <span class="truncate">{{ currentProjectDisplayName || localWorkingDir?.split('/').filter(Boolean).pop() || localWorkingDir }}</span>
               </NuxtLink>
             </div>
           </template>
@@ -1976,9 +1976,15 @@ function handleClosePreview() {
             <!-- Welcome / Select State -->
             <div v-if="viewMode === 'live' && !isLiveChat && !currentSessionId" class="flex items-center justify-center h-full text-center">
               <div class="max-w-md px-6">
-                <div class="size-20 mx-auto mb-6 rounded-3xl flex items-center justify-center" style="background: linear-gradient(135deg, rgba(229, 169, 62, 0.1) 0%, rgba(229, 169, 62, 0.05) 100%); border: 1px solid rgba(229, 169, 62, 0.1);">
+                <component
+                  :is="urlProjectName ? 'NuxtLink' : 'div'"
+                  :to="urlProjectName ? `/project-artifacts/${encodeURIComponent(urlProjectName)}` : undefined"
+                  class="size-20 mx-auto mb-6 rounded-3xl flex items-center justify-center transition-all"
+                  :class="urlProjectName ? 'hover:scale-105 cursor-pointer' : ''"
+                  style="background: linear-gradient(135deg, rgba(229, 169, 62, 0.1) 0%, rgba(229, 169, 62, 0.05) 100%); border: 1px solid rgba(229, 169, 62, 0.1);"
+                >
                   <UIcon :name="urlProjectName ? 'i-lucide-folder-root' : 'i-lucide-terminal'" class="size-10" style="color: var(--accent);" />
-                </div>
+                </component>
                 <h2 class="text-[20px] font-semibold mb-3" style="color: var(--text-primary); font-family: var(--font-display);">
                   {{ urlProjectName ? currentProjectDisplayName : 'Claude Code CLI' }}
                 </h2>
@@ -1994,6 +2000,15 @@ function handleClosePreview() {
                     <UIcon name="i-lucide-plus" class="size-4" />
                     Start a New Chat {{ urlProjectName ? 'in Folder' : '' }}
                   </button>
+                  <NuxtLink
+                    v-if="urlProjectName"
+                    :to="`/project-artifacts/${encodeURIComponent(urlProjectName)}`"
+                    class="w-full py-2 rounded-xl font-medium transition-all flex items-center justify-center gap-2 hover-bg"
+                    style="color: var(--text-secondary); border: 1px solid var(--border-subtle);"
+                  >
+                    <UIcon name="i-lucide-box" class="size-4" />
+                    View Artifacts
+                  </NuxtLink>
                   <p v-if="!urlProjectName" class="text-[11px]" style="color: var(--text-tertiary);">
                     Browse your project history in the left sidebar
                   </p>
