@@ -122,7 +122,7 @@ function handleResend(content: string, images?: string[]) {
               <div
                 class="px-3 md:px-4 py-2 md:py-2.5 min-w-0"
                 :class="idx === 0 ? 'rounded-2xl rounded-tr-md' : 'rounded-2xl rounded-r-md'"
-                style="background: var(--accent); color: white;"
+                style="background: var(--surface-raised); color: var(--text-primary); border: 1px solid var(--border-default);"
               >
                 <div v-if="msg.images && msg.images.length > 0" class="flex flex-wrap gap-2 mb-2">
                   <img v-for="(img, i) in msg.images" :key="i" :src="img" class="max-w-[160px] md:max-w-[200px] max-h-[160px] md:max-h-[200px] rounded-lg object-contain bg-white/10" />
@@ -162,10 +162,10 @@ function handleResend(content: string, images?: string[]) {
           </div>
           <!-- User Avatar -->
           <div
-            class="size-7 md:size-8 rounded-full shrink-0 flex items-center justify-center text-[11px] md:text-[12px] font-semibold"
-            style="background: var(--accent); color: white;"
+            class="size-7 md:size-8 rounded-full shrink-0 flex items-center justify-center"
+            style="background: var(--accent-muted); border: 1px solid rgba(229,169,62,0.25);"
           >
-            U
+            <UIcon name="i-lucide-user" class="size-3.5 md:size-4" style="color: var(--accent);" />
           </div>
         </div>
       </div>
