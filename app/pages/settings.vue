@@ -491,6 +491,32 @@ async function cleanupEmptySessions(projectName?: string) {
     cleaningUp.value = false
   }
 }
+
+// ---- Working Directory ----
+const { workingDir, displayPath, setWorkingDir, clearWorkingDir } = useWorkingDir()
+const { projects, fetchProjects } = useClaudeCodeHistory()
+const isBrowsingWorkingDir = ref(false)
+const showWorkingDirMenu = ref(false)
+const workingDirMenuRef = ref<HTMLElement | null>(null)
+
+onMounted(() => {
+  if (!projects.value.length) fetchProjects()
+  document.addEventListener('click', (e) => {
+    if (workingDirMenuRef.value && !workingDirMenuRef.value.contains(e.target as Node)) {
+      showWorkingDirMenu.value = false
+    }
+  })
+})
+
+async function browseWorkingDir() {
+  isBrowsingWorkingDir.value = true
+  try {
+    const res = await $fetch<{ path: string | null }>('/api/utils/pick-folder', { method: 'POST' })
+    if (res.path) setWorkingDir(res.path)
+  } finally {
+    isBrowsingWorkingDir.value = false
+  }
+}
 </script>
 
 <template>
@@ -552,8 +578,8 @@ async function cleanupEmptySessions(projectName?: string) {
                 :key="opt.value"
                 class="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors focus-ring"
                 :style="defaultModel === opt.value
-                  ? 'background: var(--accent); color: var(--accent-fg);'
-                  : 'background: var(--input-bg); color: var(--text-secondary);'"
+                  ? 'background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.25);'
+                  : 'background: var(--input-bg); color: var(--text-secondary); border: 1px solid transparent;'"
                 @click="saveDefaultModel(opt.value)"
               >
                 {{ opt.label }}
@@ -561,12 +587,75 @@ async function cleanupEmptySessions(projectName?: string) {
               <button
                 class="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors focus-ring"
                 :style="!defaultModel
-                  ? 'background: var(--accent); color: var(--accent-fg);'
-                  : 'background: var(--input-bg); color: var(--text-secondary);'"
+                  ? 'background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.25);'
+                  : 'background: var(--input-bg); color: var(--text-secondary); border: 1px solid transparent;'"
                 @click="saveDefaultModel('')"
               >
                 Default
               </button>
+            </div>
+          </div>
+
+          <!-- Working Directory -->
+          <div class="flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <div class="text-[13px] font-medium">Working Directory</div>
+              <div class="text-[12px] text-label mt-0.5">
+                Directory Claude reads and writes files in. Defaults to <code class="font-mono text-[11px]">~/.claude</code>.
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <!-- Current value pill -->
+              <div v-if="workingDir" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style="background: var(--surface-raised); border: 1px solid var(--border-subtle);">
+                <UIcon name="i-lucide-folder-check" class="size-3.5 shrink-0" style="color: var(--accent);" />
+                <span class="text-[11px] font-mono max-w-[140px] truncate" style="color: var(--text-secondary);">{{ displayPath }}</span>
+                <button class="p-0.5 rounded hover-bg ml-0.5" @click="clearWorkingDir()">
+                  <UIcon name="i-lucide-x" class="size-3" style="color: var(--text-disabled);" />
+                </button>
+              </div>
+              <!-- Picker dropdown -->
+              <div class="relative" ref="workingDirMenuRef">
+                <button
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all disabled:opacity-50"
+                  style="background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.2);"
+                  :disabled="isBrowsingWorkingDir"
+                  @click="showWorkingDirMenu = !showWorkingDirMenu"
+                >
+                  <UIcon :name="isBrowsingWorkingDir ? 'i-lucide-loader-2' : 'i-lucide-folder'" class="size-3.5" :class="{ 'animate-spin': isBrowsingWorkingDir }" />
+                  {{ workingDir ? 'Change' : 'Set directory' }}
+                  <UIcon name="i-lucide-chevron-down" class="size-3 transition-transform" :class="{ 'rotate-180': showWorkingDirMenu }" />
+                </button>
+                <Transition name="dropdown">
+                  <div
+                    v-if="showWorkingDirMenu"
+                    class="absolute right-0 top-[calc(100%+4px)] z-50 rounded-xl py-1 shadow-lg"
+                    style="background: var(--surface-overlay); border: 1px solid var(--border-subtle); min-width: 200px;"
+                  >
+                    <div v-if="projects.length" class="px-3 pt-1.5 pb-0.5">
+                      <span class="text-[10px] font-semibold uppercase tracking-wider" style="color: var(--text-disabled);">Recent projects</span>
+                    </div>
+                    <button
+                      v-for="p in projects.slice(0, 6)"
+                      :key="p.name"
+                      class="w-full flex items-center gap-2 px-3 py-2 text-left hover-bg"
+                      :style="{ background: workingDir === p.path ? 'var(--accent-muted)' : undefined }"
+                      @click="setWorkingDir(p.path); showWorkingDirMenu = false"
+                    >
+                      <UIcon name="i-lucide-folder" class="size-3.5 shrink-0" :style="{ color: workingDir === p.path ? 'var(--accent)' : 'var(--text-tertiary)' }" />
+                      <span class="text-[12px] truncate" style="color: var(--text-primary);">{{ p.displayName }}</span>
+                      <UIcon v-if="workingDir === p.path" name="i-lucide-check" class="size-3 shrink-0 ml-auto" style="color: var(--accent);" />
+                    </button>
+                    <div class="mx-2 my-1" style="border-top: 1px solid var(--border-subtle);" />
+                    <button
+                      class="w-full flex items-center gap-2 px-3 py-2 text-left hover-bg"
+                      @click="browseWorkingDir(); showWorkingDirMenu = false"
+                    >
+                      <UIcon name="i-lucide-folder-open" class="size-3.5 shrink-0" style="color: var(--text-tertiary);" />
+                      <span class="text-[12px]" style="color: var(--text-secondary);">Browse folder...</span>
+                    </button>
+                  </div>
+                </Transition>
+              </div>
             </div>
           </div>
 
@@ -1133,3 +1222,9 @@ async function cleanupEmptySessions(projectName?: string) {
     </UModal>
   </div>
 </template>
+
+<style scoped>
+.dropdown-enter-active { transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
+.dropdown-leave-active { transition: opacity 0.1s ease, transform 0.1s ease; }
+.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-4px) scale(0.97); }
+</style>

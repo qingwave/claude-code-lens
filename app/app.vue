@@ -18,36 +18,7 @@ watch(() => route.path, (path) => {
   sidebarCollapsed.value = path.startsWith('/cli')
 }, { immediate: true })
 const { isPanelOpen: chatOpen } = useChat()
-const { workingDir, displayPath, setWorkingDir, clearWorkingDir } = useWorkingDir()
-const { projects, fetchProjects } = useClaudeCodeHistory()
 const colorMode = useColorMode()
-
-const showWorkingDirPopover = ref(false)
-const isBrowsingWorkingDir = ref(false)
-
-async function openWorkingDirPopover() {
-  showWorkingDirPopover.value = true
-  if (!projects.value.length) fetchProjects()
-}
-
-function selectProject(path: string) {
-  setWorkingDir(path)
-  showWorkingDirPopover.value = false
-}
-
-async function browseWorkingDir() {
-  isBrowsingWorkingDir.value = true
-  try {
-    const res = await $fetch<{ path: string | null }>('/api/utils/pick-folder', { method: 'POST' })
-    if (res.path) {
-      setWorkingDir(res.path)
-      showWorkingDirPopover.value = false
-    }
-  } finally {
-    isBrowsingWorkingDir.value = false
-  }
-}
-
 
 function toggleTheme() {
   colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
@@ -92,7 +63,6 @@ const navMid: { key: string; label: string; icon: string; to: string }[] = []
 const navBottom = [
   { label: 'Explore', icon: 'i-lucide-compass', to: '/explore' },
   { label: 'Graph', icon: 'i-lucide-workflow', to: '/graph' },
-  { label: 'Settings', icon: 'i-lucide-settings', to: '/settings' },
 ]
 
 function isActive(to: string) {
@@ -343,90 +313,18 @@ function badgeFor(to: string) {
           </ClientOnly>
         </div>
 
-        <!-- Footer: working directory -->
-        <div :class="sidebarCollapsed ? 'px-1.5 pb-2.5' : 'px-2.5 pb-2.5'" style="border-top: 1px solid var(--border-subtle); padding-top: 0.75rem;">
-          <UPopover v-model:open="showWorkingDirPopover" :ui="{ width: 'w-[280px]' }">
-            <button
-              class="w-full flex items-center rounded-lg transition-all duration-150 focus-ring cursor-pointer press-scale"
-              :class="sidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-2 px-3 py-2 text-left'"
-              style="color: var(--text-disabled); border: 1px solid var(--border-subtle);"
-              :title="sidebarCollapsed ? (workingDir || 'Set project directory') : undefined"
-              @click="openWorkingDirPopover"
-            >
-              <UIcon name="i-lucide-folder" class="size-3.5 shrink-0" :style="{ color: workingDir ? 'var(--accent)' : undefined }" />
-              <template v-if="!sidebarCollapsed">
-                <div class="flex-1 min-w-0">
-                  <div v-if="workingDir" class="font-mono text-[10px] truncate" style="color: var(--text-secondary);">
-                    {{ displayPath }}
-                  </div>
-                  <div v-else class="text-[11px]" style="font-family: var(--font-sans);">
-                    Set project directory
-                  </div>
-                </div>
-                <UIcon name="i-lucide-pencil" class="size-3 shrink-0" style="color: var(--text-disabled);" />
-              </template>
-            </button>
-            <template #content>
-              <div class="py-1" style="min-width: 220px;">
-                <!-- Description -->
-                <div class="px-3 pt-2 pb-2 border-b" style="border-color: var(--border-subtle);">
-                  <p class="text-[11px] leading-relaxed" style="color: var(--text-tertiary);">
-                    Claude will read and write files in this directory.
-                  </p>
-                  <div class="flex items-center gap-1.5 mt-1">
-                    <UIcon name="i-lucide-info" class="size-3 shrink-0" style="color: var(--text-disabled);" />
-                    <span class="text-[10px] font-mono" style="color: var(--text-disabled);">Default: {{ workingDir ? displayPath : '~/.claude' }}</span>
-                  </div>
-                </div>
-                <!-- Current dir indicator -->
-                <div v-if="workingDir" class="px-3 py-2 border-b" style="border-color: var(--border-subtle);">
-                  <div class="text-[10px] font-semibold uppercase tracking-wider mb-1" style="color: var(--text-disabled);">Current</div>
-                  <div class="flex items-center gap-1.5">
-                    <UIcon name="i-lucide-folder-check" class="size-3.5 shrink-0" style="color: var(--accent);" />
-                    <span class="text-[11px] font-mono truncate" style="color: var(--text-secondary);">{{ displayPath }}</span>
-                  </div>
-                </div>
-                <!-- Recent projects -->
-                <div v-if="projects.length" class="px-3 pt-2 pb-0.5">
-                  <span class="text-[10px] font-semibold uppercase tracking-wider" style="color: var(--text-disabled);">Recent projects</span>
-                </div>
-                <button
-                  v-for="project in projects.slice(0, 5)"
-                  :key="project.name"
-                  class="w-full flex items-center gap-2 px-3 py-2 text-left transition-all hover-bg"
-                  :style="{ background: workingDir === project.path ? 'var(--accent-muted)' : undefined }"
-                  @click="selectProject(project.path)"
-                >
-                  <UIcon name="i-lucide-folder" class="size-3.5 shrink-0" :style="{ color: workingDir === project.path ? 'var(--accent)' : 'var(--text-tertiary)' }" />
-                  <span class="text-[12px] truncate" style="color: var(--text-primary);">{{ project.displayName }}</span>
-                  <UIcon v-if="workingDir === project.path" name="i-lucide-check" class="size-3 shrink-0 ml-auto" style="color: var(--accent);" />
-                </button>
-                <!-- Divider -->
-                <div class="mx-2 my-1" style="border-top: 1px solid var(--border-subtle);" />
-                <!-- Browse -->
-                <button
-                  class="w-full flex items-center gap-2 px-3 py-2 text-left transition-all hover-bg disabled:opacity-50"
-                  :disabled="isBrowsingWorkingDir"
-                  @click="browseWorkingDir"
-                >
-                  <UIcon :name="isBrowsingWorkingDir ? 'i-lucide-loader-2' : 'i-lucide-folder-open'" class="size-3.5 shrink-0" :class="{ 'animate-spin': isBrowsingWorkingDir }" style="color: var(--text-tertiary);" />
-                  <span class="text-[12px]" style="color: var(--text-secondary);">{{ isBrowsingWorkingDir ? 'Selecting...' : 'Browse folder...' }}</span>
-                </button>
-                <!-- Clear -->
-                <button
-                  v-if="workingDir"
-                  class="w-full flex items-center gap-2 px-3 py-2 text-left transition-all hover-bg"
-                  @click="clearWorkingDir(); showWorkingDirPopover = false"
-                >
-                  <UIcon name="i-lucide-x" class="size-3.5 shrink-0" style="color: var(--error);" />
-                  <span class="text-[12px]" style="color: var(--error);">Clear</span>
-                </button>
-              </div>
-            </template>
-          </UPopover>
-          <div v-if="!sidebarCollapsed" class="font-mono text-[9px] truncate tracking-wide mt-1.5 px-1" style="color: var(--text-disabled);">
-            {{ claudeDir || 'No config directory' }}
-          </div>
+        <!-- Footer: Settings -->
+        <div :class="sidebarCollapsed ? 'px-1.5 pb-2.5' : 'px-2.5 pb-2.5'">
+          <NuxtLink
+            to="/settings"
+            class="w-full flex items-center rounded-lg transition-all duration-150 focus-ring press-scale"
+            :class="sidebarCollapsed ? 'justify-center px-0 py-2' : 'gap-2 px-3 py-2'"
+            style="color: var(--text-tertiary);"
+            :title="sidebarCollapsed ? 'Settings' : undefined"
+          >
+            <UIcon name="i-lucide-settings" class="size-4" />
+            <span v-if="!sidebarCollapsed" class="text-[12px]" style="font-family: var(--font-sans);">Settings</span>
+          </NuxtLink>
         </div>
       </aside>
 
