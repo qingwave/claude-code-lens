@@ -163,59 +163,37 @@ defineExpose({ focus, resetHeight });
         "
       />
 
-      <div
-        class="absolute bottom-2.5 left-3 right-3 flex items-center justify-between"
-      >
-        <span
-          class="text-[10px] font-mono flex items-center gap-1.5"
-          style="color: var(--text-disabled)"
-        >
+      <div class="absolute bottom-2.5 left-3 right-3 flex items-center justify-between">
+        <span class="text-[10px] font-mono flex items-center gap-1.5" style="color: var(--text-disabled)">
           <template v-if="projectDisplayPath">
-            <UIcon
-              name="i-lucide-folder"
-              class="size-3"
-              style="color: var(--accent)"
-            />
+            <UIcon name="i-lucide-folder" class="size-3" style="color: var(--accent)" />
             <span class="truncate max-w-[120px]">{{ projectDisplayPath }}</span>
             <span>&middot;</span>
           </template>
           &#x23CE; Send &middot; &#x21E7;&#x23CE; New line
         </span>
 
-        <div class="flex items-center gap-1.5">
-          <button
-            v-if="isStreaming"
-            class="p-1.5 rounded-lg transition-all"
-            style="background: var(--error); color: white"
-            title="Stop"
-            @click="emit('stop')"
-          >
-            <UIcon
-              name="i-lucide-square"
-              class="size-3"
-            />
-          </button>
-          <button
-            v-else
-            class="p-1.5 rounded-lg transition-all duration-200"
-            :style="{
-              background: modelValue.trim()
-                ? 'var(--accent)'
-                : 'var(--badge-subtle-bg)',
-              color: modelValue.trim() ? 'white' : 'var(--text-disabled)',
-              boxShadow: modelValue.trim()
-                ? '0 0 12px var(--accent-glow)'
-                : 'none',
-            }"
-            :disabled="!modelValue.trim()"
-            @click="emit('send')"
-          >
-            <UIcon
-              name="i-lucide-arrow-up"
-              class="size-3"
-            />
-          </button>
-        </div>
+        <button
+          v-if="isStreaming"
+          class="size-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105"
+          style="background: var(--text-primary); color: var(--surface-base);"
+          title="Stop"
+          @click="emit('stop')"
+        >
+          <UIcon name="i-lucide-square" class="size-3" />
+        </button>
+        <button
+          v-else
+          class="size-7 rounded-full flex items-center justify-center transition-all duration-200"
+          :style="{
+            background: modelValue.trim() ? 'var(--text-primary)' : 'var(--border-default)',
+            color: modelValue.trim() ? 'var(--surface-base)' : 'var(--text-disabled)',
+          }"
+          :disabled="!modelValue.trim()"
+          @click="emit('send')"
+        >
+          <UIcon name="i-lucide-arrow-up" class="size-3.5" />
+        </button>
       </div>
     </div>
   </div>

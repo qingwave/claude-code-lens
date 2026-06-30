@@ -265,40 +265,40 @@ onMounted(async () => {
       <div class="flex items-center gap-1 shrink-0">
         <!-- Attach button -->
         <button
-          class="p-1.5 rounded-lg transition-all hover:bg-[var(--surface-hover)]"
+          class="size-7 rounded-full flex items-center justify-center transition-all duration-200 hover:bg-[var(--surface-hover)] shrink-0"
           style="color: var(--text-secondary);"
           title="Attach image"
           @click="fileInputRef?.click()"
         >
-          <UIcon name="i-lucide-paperclip" class="size-4" />
+          <UIcon name="i-lucide-paperclip" class="size-3.5" />
         </button>
         <input ref="fileInputRef" type="file" accept="image/*" multiple class="hidden" @change="handleFileSelect" />
 
         <!-- Abort button when streaming -->
         <button
           v-if="isStreaming"
-          class="p-1.5 rounded-lg transition-all hover:opacity-80"
-          style="background: rgba(239, 68, 68, 0.1); color: #ef4444;"
+          class="size-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80 shrink-0"
+          style="background: var(--text-primary); color: var(--surface-base);"
           title="Stop generating"
           @click="emit('abort')"
         >
-          <UIcon name="i-lucide-square" class="size-4" />
+          <UIcon name="i-lucide-square" class="size-3" />
         </button>
 
         <!-- Send button -->
         <button
           v-else
-          class="p-1.5 rounded-lg transition-all"
+          class="size-7 rounded-full flex items-center justify-center transition-all duration-200 shrink-0"
           :style="{
-            background: disabled || (!localValue.trim() && attachedImages.length === 0) ? 'transparent' : 'var(--accent)',
-            color: disabled || (!localValue.trim() && attachedImages.length === 0) ? 'var(--text-disabled)' : 'white',
+            background: disabled || (!localValue.trim() && attachedImages.length === 0) ? 'var(--border-default)' : 'var(--text-primary)',
+            color: disabled || (!localValue.trim() && attachedImages.length === 0) ? 'var(--text-disabled)' : 'var(--surface-base)',
             cursor: disabled || (!localValue.trim() && attachedImages.length === 0) ? 'not-allowed' : 'pointer',
           }"
           :disabled="disabled || (!localValue.trim() && attachedImages.length === 0)"
           title="Send message"
           @click="triggerSend"
         >
-          <UIcon name="i-lucide-arrow-up" class="size-4" />
+          <UIcon name="i-lucide-arrow-up" class="size-3.5" />
         </button>
       </div>
     </div>
