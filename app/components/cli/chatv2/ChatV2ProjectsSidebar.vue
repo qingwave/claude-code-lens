@@ -269,14 +269,39 @@ function closeConfig() {
 const isChoosingFolder = ref(false)
 const folderInput = ref('')
 const folderInputRef = ref<HTMLInputElement | null>(null)
+const showNewChatMenu = ref(false)
+const newChatMenuRef = ref<HTMLElement | null>(null)
+const isBrowsingFolder = ref(false)
 
 function handleNewChat(workingDir?: string, displayName?: string) {
+  showNewChatMenu.value = false
   if (workingDir) {
     emit('newChat', { workingDir, projectDisplayName: displayName })
   } else {
+    emit('newChat', undefined)
+  }
+}
+
+function openNewChatMenu() {
+  showNewChatMenu.value = !showNewChatMenu.value
+}
+
+async function openFolderInput() {
+  showNewChatMenu.value = false
+  isBrowsingFolder.value = true
+  try {
+    const res = await $fetch<{ path: string | null }>('/api/utils/pick-folder', { method: 'POST' })
+    if (res.path) {
+      const displayName = res.path.split('/').pop() || res.path
+      emit('newChat', { workingDir: res.path, projectDisplayName: displayName })
+    }
+  } catch {
+    // user cancelled or error — fall back to manual input
     if (props.collapsed) emit('toggleCollapse')
     isChoosingFolder.value = true
     nextTick(() => folderInputRef.value?.focus())
+  } finally {
+    isBrowsingFolder.value = false
   }
 }
 
@@ -285,6 +310,15 @@ function confirmFolder() {
   isChoosingFolder.value = false
   folderInput.value = ''
 }
+
+// Close dropdown on outside click
+onMounted(() => {
+  document.addEventListener('click', (e) => {
+    if (newChatMenuRef.value && !newChatMenuRef.value.contains(e.target as Node)) {
+      showNewChatMenu.value = false
+    }
+  })
+})
 
 function cancelFolderSelection() {
   isChoosingFolder.value = false
@@ -556,16 +590,53 @@ defineExpose({ refreshProject: loadProjectSessions })
         <!-- New Chat bar -->
         <div class="shrink-0 px-3 py-2 border-b flex items-center gap-2" style="border-color: var(--border-subtle);">
           <template v-if="!isChoosingFolder">
-            <button
-              class="flex-1 h-8 flex items-center gap-1.5 px-2.5 rounded-lg text-[12px] font-medium transition-all"
-              style="background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.2);"
-              @mouseenter="($event.currentTarget as HTMLElement).style.background = 'rgba(229,169,62,0.18)'"
-              @mouseleave="($event.currentTarget as HTMLElement).style.background = 'var(--accent-muted)'"
-              @click="handleNewChat()"
-            >
-              <UIcon name="i-lucide-plus" class="size-3.5 shrink-0" />
-              <span>New Chat</span>
-            </button>
+            <!-- New Chat button with dropdown -->
+            <div ref="newChatMenuRef" class="flex-1 relative">
+              <button
+                class="w-full h-8 flex items-center gap-1.5 px-2.5 rounded-lg text-[12px] font-medium transition-all"
+                style="background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.2);"
+                @mouseenter="($event.currentTarget as HTMLElement).style.background = 'rgba(229,169,62,0.18)'"
+                @mouseleave="($event.currentTarget as HTMLElement).style.background = 'var(--accent-muted)'"
+                @click="openNewChatMenu"
+              >
+                <UIcon name="i-lucide-plus" class="size-3.5 shrink-0" />
+                <span class="flex-1 text-left">New Chat</span>
+                <UIcon name="i-lucide-chevron-down" class="size-3 shrink-0 transition-transform duration-150" :class="{ 'rotate-180': showNewChatMenu }" />
+              </button>
+
+              <!-- Dropdown -->
+              <Transition name="dropdown">
+                <div
+                  v-if="showNewChatMenu"
+                  class="absolute left-0 right-0 top-[calc(100%+4px)] z-50 rounded-xl py-1 shadow-lg"
+                  style="background: var(--surface-overlay); border: 1px solid var(--border-subtle);"
+                >
+                  <!-- Recent projects -->
+                  <div v-if="projects.length" class="px-2 pt-1 pb-0.5">
+                    <span class="text-[10px] font-semibold uppercase tracking-wider px-1" style="color: var(--text-disabled);">Recent projects</span>
+                  </div>
+                  <button
+                    v-for="project in projects.slice(0, 5)"
+                    :key="project.name"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-left transition-all hover-bg"
+                    @click="handleNewChat(project.path, project.displayName)"
+                  >
+                    <UIcon name="i-lucide-folder" class="size-3.5 shrink-0" style="color: var(--accent);" />
+                    <span class="text-[12px] truncate" style="color: var(--text-primary);">{{ project.displayName }}</span>
+                  </button>
+                  <!-- Divider + Choose folder -->
+                  <div class="mx-2 my-1" style="border-top: 1px solid var(--border-subtle);" />
+                  <button
+                    class="w-full flex items-center gap-2 px-3 py-2 text-left transition-all hover-bg disabled:opacity-50"
+                    :disabled="isBrowsingFolder"
+                    @click="openFolderInput"
+                  >
+                    <UIcon :name="isBrowsingFolder ? 'i-lucide-loader-2' : 'i-lucide-folder-plus'" class="size-3.5 shrink-0" :class="{ 'animate-spin': isBrowsingFolder }" style="color: var(--text-tertiary);" />
+                    <span class="text-[12px]" style="color: var(--text-secondary);">{{ isBrowsingFolder ? 'Selecting...' : 'Choose folder...' }}</span>
+                  </button>
+                </div>
+              </Transition>
+            </div>
             <button
               class="size-8 flex items-center justify-center rounded-lg transition-all hover-bg"
               style="color: var(--text-tertiary);"
@@ -795,7 +866,7 @@ defineExpose({ refreshProject: loadProjectSessions })
           class="size-8 flex items-center justify-center rounded-lg transition-all"
           style="background: var(--accent-muted); color: var(--accent); border: 1px solid rgba(229,169,62,0.3);"
           title="New Chat"
-          @click="handleNewChat(selectedProject?.path, selectedProject?.displayName)"
+          @click="() => { emit('toggleCollapse'); nextTick(() => { showNewChatMenu = true }) }"
         >
           <UIcon name="i-lucide-plus" class="size-4" />
         </button>
@@ -863,4 +934,7 @@ defineExpose({ refreshProject: loadProjectSessions })
   from { opacity: 0; transform: scale(0.95) translateY(8px); }
   to   { opacity: 1; transform: scale(1)    translateY(0); }
 }
+.dropdown-enter-active { transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
+.dropdown-leave-active { transition: opacity 0.1s ease, transform 0.1s ease; }
+.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-4px) scale(0.97); }
 </style>
