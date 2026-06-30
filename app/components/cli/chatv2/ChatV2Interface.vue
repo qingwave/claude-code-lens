@@ -2010,7 +2010,7 @@ function handleClosePreview() {
           :class="(viewMode === 'live' && !isLiveChat && !currentSessionId) ? 'flex items-center justify-center' : ''"
           :style="{
             background: 'var(--surface-base)',
-            opacity: isInitialScroll ? 0 : 1
+            opacity: isInitialScroll ? 0 : 1,
           }"
           @scroll="handleMessagesScroll"
         >
@@ -2119,24 +2119,25 @@ function handleClosePreview() {
         />
       </div><!-- end Messages Area -->
 
-      <!-- Input dock: input box + controls bar -->
+      <!-- Input dock -->
       <div
         v-if="(isLiveChat || currentSessionId || (viewMode === 'history' && urlSessionId)) && !isLoadingHistoryWithDelay && !isCreatingSession"
-        class="shrink-0 border-t"
-        style="border-color: var(--border-subtle); background: var(--surface-overlay);"
+        class="shrink-0"
+        style="background: var(--surface-base);"
       >
-        <!-- Chat Input with controls in the hints slot -->
+        <div class="max-w-[1200px] mx-auto pl-[52px] md:pl-[60px] pr-8">
+        <!-- Chat Input -->
         <ChatV2Input
           v-model="inputText"
           :disabled="isStreaming || isCreatingSession"
           :is-streaming="isStreaming"
           :placeholder="viewMode === 'history' && !isContinuingHistory ? 'Continue this conversation...' : 'Message Claude...'"
           @send="handleSendMessage"
-          @abort="abort()"
-          @focus="isInputFocused = true"
-          @blur="isInputFocused = false"
-        >
-          <template #controls>
+            @abort="abort()"
+            @focus="isInputFocused = true"
+            @blur="isInputFocused = false"
+          >
+            <template #controls>
             <!-- Model Selector -->
             <ChatV2ModelSelector
               v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
@@ -2260,7 +2261,8 @@ function handleClosePreview() {
               <span :style="{ color: contextUsageColorHex }">{{ Math.round(contextMonitor.metrics.value.contextWindow.percentage) }}%</span>
             </button>
           </template>
-        </ChatV2Input>
+          </ChatV2Input>
+        </div>
       </div>
 
       </template>

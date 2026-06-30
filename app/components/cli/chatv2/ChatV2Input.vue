@@ -211,7 +211,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="px-2 py-1.5 sm:px-3 sm:py-2 relative" style="background: var(--surface-base);">
+  <div class="pb-2 sm:pb-3 relative">
     <!-- Command Menu -->
     <ChatV2CommandMenu
       :items="menuItems"
@@ -236,11 +236,15 @@ onMounted(async () => {
 
     <!-- Input container -->
     <div
-      class="relative flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200"
+      class="relative flex items-center gap-2 px-3 py-2.5 rounded-2xl transition-all duration-200"
       :style="{
         background: 'var(--surface-raised)',
-        border: isFocused ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
-        boxShadow: isFocused ? '0 0 0 3px rgba(229, 169, 62, 0.1)' : 'none',
+        border: isFocused
+          ? '1px solid var(--accent)'
+          : '1px solid var(--border-default)',
+        boxShadow: isFocused
+          ? '0 0 0 3px rgba(229,169,62,0.08), 0 4px 16px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.12)'
+          : '0 2px 12px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.08)',
       }"
     >
       <!-- Textarea -->
@@ -303,37 +307,24 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Bottom hints + slot for controls -->
-    <div class="flex flex-wrap items-center justify-between mt-1.5 px-1 gap-2">
-      <div class="flex flex-wrap items-center gap-3 text-[10px]" style="color: var(--text-tertiary);">
-        <span class="flex items-center gap-1">
-          <kbd class="px-1 py-0.5 rounded text-[9px]" style="background: var(--surface-raised);">Enter</kbd>
-          send
-        </span>
-        <span class="flex items-center gap-1">
-          <kbd class="px-1 py-0.5 rounded text-[9px]" style="background: var(--surface-raised);">Shift+Enter</kbd>
-          newline
-        </span>
-      </div>
+    <!-- Controls bar (centered) -->
+    <div class="flex items-center justify-center mt-1.5 px-1 gap-1 flex-wrap">
+      <slot name="controls" />
 
-      <div class="flex items-center gap-1">
-        <slot name="controls" />
+      <span
+        v-if="localValue.length > 0"
+        class="text-[10px] font-mono px-1"
+        :style="{ color: localValue.length > 10000 ? '#ef4444' : 'var(--text-tertiary)' }"
+      >{{ localValue.length.toLocaleString() }}</span>
 
-        <span
-          v-if="localValue.length > 0"
-          class="text-[10px] font-mono px-1"
-          :style="{ color: localValue.length > 10000 ? '#ef4444' : 'var(--text-tertiary)' }"
-        >{{ localValue.length.toLocaleString() }}</span>
-
-        <span
-          v-if="isStreaming"
-          class="text-[10px] flex items-center gap-1"
-          style="color: var(--accent);"
-        >
-          <UIcon name="i-lucide-loader-2" class="size-3 animate-spin" />
-          Generating...
-        </span>
-      </div>
+      <span
+        v-if="isStreaming"
+        class="text-[10px] flex items-center gap-1"
+        style="color: var(--accent);"
+      >
+        <UIcon name="i-lucide-loader-2" class="size-3 animate-spin" />
+        Generating...
+      </span>
     </div>
   </div>
 </template>
