@@ -1815,46 +1815,46 @@ function handleClosePreview() {
 
         <div class="flex items-center gap-2 shrink-0">
           <!-- Sidebar Toggles -->
-          <div v-if="(urlProjectName || currentSessionId || urlSessionId) && !isLoadingHistoryWithDelay && !isCreatingSession" class="flex items-center gap-1 px-1 py-1 rounded-lg" style="background: var(--surface-raised); border: 1px solid var(--border-subtle);">
-            <UTooltip text="Context Details" :popper="{ placement: 'top' }">
-              <button 
-                class="p-1.5 rounded-md transition-all hover-bg" 
+          <div v-if="(urlProjectName || currentSessionId || urlSessionId) && !isLoadingHistoryWithDelay && !isCreatingSession" class="flex items-center gap-0.5">
+            <UTooltip text="Context Details" :popper="{ placement: 'top' }" :ui="{ wrapper: 'flex' }">
+              <button
+                class="size-7 flex items-center justify-center rounded-md transition-all hover-bg"
                 :style="{ color: showRightSidebar && activeRightTab === 'context' ? 'var(--accent)' : 'var(--text-tertiary)' }"
                 @click="openRightTab('context')"
               >
                 <UIcon name="i-lucide-database" class="size-4" />
               </button>
             </UTooltip>
-            <UTooltip text="File Browser" :popper="{ placement: 'top' }">
-              <button 
-                class="p-1.5 rounded-md transition-all hover-bg" 
+            <UTooltip text="File Browser" :popper="{ placement: 'top' }" :ui="{ wrapper: 'flex' }">
+              <button
+                class="size-7 flex items-center justify-center rounded-md transition-all hover-bg"
                 :style="{ color: showRightSidebar && activeRightTab === 'explorer' ? 'var(--accent)' : 'var(--text-tertiary)' }"
                 @click="openRightTab('explorer')"
               >
                 <UIcon name="i-lucide-folder-tree" class="size-4" />
               </button>
             </UTooltip>
-            <UTooltip text="Git Control" :popper="{ placement: 'top' }">
+            <UTooltip text="Git Control" :popper="{ placement: 'top' }" :ui="{ wrapper: 'flex' }">
               <button
-                class="p-1.5 rounded-md transition-all hover-bg"
+                class="size-7 flex items-center justify-center rounded-md transition-all hover-bg"
                 :style="{ color: showRightSidebar && activeRightTab === 'git' ? 'var(--accent)' : 'var(--text-tertiary)' }"
                 @click="openRightTab('git')"
               >
                 <UIcon name="i-lucide-git-branch" class="size-4" />
               </button>
             </UTooltip>
-            <UTooltip text="Terminal" :popper="{ placement: 'top' }">
+            <UTooltip text="Terminal" :popper="{ placement: 'top' }" :ui="{ wrapper: 'flex' }">
               <button
-                class="p-1.5 rounded-md transition-all hover-bg"
+                class="size-7 flex items-center justify-center rounded-md transition-all hover-bg"
                 :style="{ color: terminalPaneRef?.isOpen ? 'var(--accent)' : 'var(--text-tertiary)' }"
                 @click="terminalPaneRef?.toggle()"
               >
                 <UIcon name="i-lucide-terminal" class="size-4" />
               </button>
             </UTooltip>
-            <UTooltip text="Search Messages" :popper="{ placement: 'top' }">
+            <UTooltip text="Search Messages" :popper="{ placement: 'top' }" :ui="{ wrapper: 'flex' }">
               <button
-                class="p-1.5 rounded-md transition-all hover-bg"
+                class="size-7 flex items-center justify-center rounded-md transition-all hover-bg"
                 :style="{ color: showSearch ? 'var(--accent)' : 'var(--text-tertiary)' }"
                 @click="showSearch ? closeSearch() : openSearch()"
               >
