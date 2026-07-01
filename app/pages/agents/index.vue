@@ -13,9 +13,17 @@ const searchQuery = ref('')
 const skillCounts = ref<Record<string, number>>({})
 const creatingTemplate = ref<string | null>(null)
 
+interface AgentUsageStat { sessionCount: number; lastUsed: string }
+const agentUsage = ref<Record<string, AgentUsageStat>>({})
+
 onMounted(async () => {
   try {
     skillCounts.value = await $fetch<Record<string, number>>('/api/agents/skill-counts')
+  } catch {
+    // Non-critical
+  }
+  try {
+    agentUsage.value = await $fetch<Record<string, AgentUsageStat>>('/api/stats/agent-usage')
   } catch {
     // Non-critical
   }
@@ -159,11 +167,19 @@ async function useTemplate(templateId: string) {
                 {{ agent.frontmatter.description }}
               </p>
 
-              <!-- Skill count badge -->
-              <div v-if="skillCounts[agent.slug]" class="mt-3 pt-3 relative" style="border-top: 1px solid var(--border-subtle);">
-                <span class="text-[10px] text-meta flex items-center gap-1.5">
+              <!-- Footer: skill count + usage -->
+              <div
+                v-if="skillCounts[agent.slug] || agentUsage[agent.slug]"
+                class="mt-3 pt-3 relative flex items-center gap-3"
+                style="border-top: 1px solid var(--border-subtle);"
+              >
+                <span v-if="skillCounts[agent.slug]" class="text-[10px] text-meta flex items-center gap-1.5">
                   <UIcon name="i-lucide-sparkles" class="size-3" style="color: var(--accent);" />
                   {{ skillCounts[agent.slug] }} skill{{ skillCounts[agent.slug] === 1 ? '' : 's' }}
+                </span>
+                <span v-if="agentUsage[agent.slug]" class="text-[10px] text-meta flex items-center gap-1.5">
+                  <UIcon name="i-lucide-bar-chart-2" class="size-3" />
+                  {{ agentUsage[agent.slug].sessionCount }} session{{ agentUsage[agent.slug].sessionCount === 1 ? '' : 's' }}
                 </span>
               </div>
             </NuxtLink>

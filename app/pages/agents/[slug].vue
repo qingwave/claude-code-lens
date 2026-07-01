@@ -23,6 +23,21 @@ const skills = ref<AgentSkill[]>([])
 const loadingSkills = ref(false)
 const isTestPanelOpen = ref(true)
 
+interface AgentUsageStat { sessionCount: number; lastUsed: string }
+const usageStat = ref<AgentUsageStat | null>(null)
+
+function formatRelative(ts: string): string {
+  const diff = Date.now() - new Date(ts).getTime()
+  const m = Math.floor(diff / 60_000)
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d < 7) return `${d}d ago`
+  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 const { hasDraft, draftAge, loadDraft, clearDraft, scheduleSave } = useDraftRecovery(`agent:${slug}`)
 
 const isDirty = computed(() => {
@@ -87,6 +102,9 @@ onMounted(() => {
   loadAgent()
   loadSkills()
   clearStudioChat()
+  $fetch<Record<string, AgentUsageStat>>('/api/stats/agent-usage')
+    .then(data => { usageStat.value = data[slug] ?? null })
+    .catch(() => {})
 })
 
 async function save() {
@@ -154,9 +172,21 @@ useUnsavedChanges(isDirty)
         </NuxtLink>
       </template>
       <template #subtitle>
-        <div v-if="filePath" class="flex items-center gap-1.5 text-[10px] text-meta font-mono max-w-2xl truncate">
-          <UIcon name="i-lucide-file-text" class="size-3" />
-          <span class="select-all">{{ filePath }}</span>
+        <div class="flex items-center gap-3 flex-wrap">
+          <div v-if="filePath" class="flex items-center gap-1.5 text-[10px] text-meta font-mono max-w-2xl truncate">
+            <UIcon name="i-lucide-file-text" class="size-3" />
+            <span class="select-all">{{ filePath }}</span>
+          </div>
+          <div v-if="usageStat" class="flex items-center gap-3">
+            <span class="flex items-center gap-1 text-[10px] text-meta">
+              <UIcon name="i-lucide-bar-chart-2" class="size-3" />
+              {{ usageStat.sessionCount }} session{{ usageStat.sessionCount === 1 ? '' : 's' }}
+            </span>
+            <span v-if="usageStat.lastUsed" class="flex items-center gap-1 text-[10px] text-meta">
+              <UIcon name="i-lucide-clock" class="size-3" />
+              {{ formatRelative(usageStat.lastUsed) }}
+            </span>
+          </div>
         </div>
       </template>
       <template #trailing>
