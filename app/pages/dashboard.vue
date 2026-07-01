@@ -365,6 +365,9 @@ const statItems = computed(() => [
         </div>
       </div>
 
+      <!-- Activity card -->
+      <ActivityHeatmap />
+
       <!-- Bento grid: Agents + Commands + Quick Actions -->
       <div
         v-if="hasContent"
