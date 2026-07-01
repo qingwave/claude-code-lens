@@ -622,7 +622,7 @@ defineExpose({ refreshProject: loadProjectSessions })
       <!-- Main projects list -->
       <template v-else>
         <!-- New Chat bar -->
-        <div class="shrink-0 px-3 py-2 border-b flex items-center gap-2" style="border-color: var(--border-subtle);">
+        <div class="shrink-0 px-3 py-2 flex items-center gap-2">
           <template v-if="!isChoosingFolder">
             <!-- New Chat button with dropdown -->
             <div ref="newChatMenuRef" class="flex-1 relative">
@@ -699,7 +699,7 @@ defineExpose({ refreshProject: loadProjectSessions })
         </div>
 
         <!-- Projects / Recent tab bar -->
-        <div class="shrink-0 flex px-3 pt-2 gap-1" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 0;">
+        <div class="shrink-0 flex px-3 pt-1 gap-1" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 0;">
           <button
             v-for="tab in (['projects', 'recent'] as const)"
             :key="tab"

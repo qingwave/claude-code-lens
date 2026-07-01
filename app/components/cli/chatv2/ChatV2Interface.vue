@@ -1621,7 +1621,7 @@ function handleClosePreview() {
 
         <!-- Settings Landing (no specific panel selected) -->
         <template v-if="!activeConfigPanel">
-          <div class="shrink-0 border-b h-14 flex items-center gap-3 px-4" style="border-color: var(--border-subtle); background: var(--surface-overlay);">
+          <div class="shrink-0 border-b h-14 flex items-center gap-3 px-4" style="border-color: var(--border-subtle); background: var(--surface-base);">
             <UIcon name="i-lucide-settings-2" class="size-4" style="color: var(--accent);" />
             <h3 class="text-[14px] font-semibold" style="color: var(--text-primary);">Project Settings</h3>
             <span class="text-[11px] font-mono" style="color: var(--text-tertiary);">
@@ -1644,7 +1644,7 @@ function handleClosePreview() {
         <!-- Specific Config Panel -->
         <template v-else>
         <!-- Config Header -->
-        <div class="shrink-0 border-b h-14 flex items-center gap-3 px-4" style="border-color: var(--border-subtle); background: var(--surface-overlay);">
+        <div class="shrink-0 border-b h-14 flex items-center gap-3 px-4" style="border-color: var(--border-subtle); background: var(--surface-base);">
           <button
             class="p-1.5 rounded-lg hover-bg transition-all"
             style="background: var(--surface-raised);"
@@ -1813,7 +1813,7 @@ function handleClosePreview() {
       <div
         :key="urlSessionId || 'live'"
         class="shrink-0 border-b relative z-20"
-        style="border-color: var(--border-subtle); background: var(--surface-overlay);"
+        style="border-color: var(--border-subtle); background: var(--surface-base);"
       >
         <div class="flex items-center justify-between px-4 h-14">
           <div class="flex items-center gap-2 min-w-0 flex-1">
@@ -1978,7 +1978,7 @@ function handleClosePreview() {
           <div
             v-if="showSearch"
             class="shrink-0 flex items-center gap-2 px-4 py-2 border-b"
-            style="border-color: var(--border-subtle); background: var(--surface-overlay);"
+            style="border-color: var(--border-subtle); background: var(--surface-base);"
           >
             <UIcon name="i-lucide-search" class="size-3.5 shrink-0" style="color: var(--text-tertiary);" />
             <input
