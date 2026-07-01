@@ -427,6 +427,40 @@ onMounted(async () => {
   await fetchOutputStyles()
 })
 
+// ── Recent sessions (cross-project feed) ─────────────────────────────────────
+
+type SidebarView = 'projects' | 'recent'
+const sidebarView = ref<SidebarView>('projects')
+
+interface RecentSession {
+  sessionId: string
+  projectName: string
+  projectDisplayName: string
+  title: string
+  timestamp: string
+  messageCount: number
+  toolCallCount: number
+}
+
+const recentSessions = ref<RecentSession[]>([])
+const recentLoading = ref(false)
+
+async function loadRecentSessions() {
+  if (recentLoading.value) return
+  recentLoading.value = true
+  try {
+    recentSessions.value = await $fetch<RecentSession[]>('/api/stats/recent-sessions')
+  } catch {
+    recentSessions.value = []
+  } finally {
+    recentLoading.value = false
+  }
+}
+
+watch(sidebarView, (v) => {
+  if (v === 'recent' && recentSessions.value.length === 0) loadRecentSessions()
+})
+
 defineExpose({ refreshProject: loadProjectSessions })
 </script>
 
@@ -664,8 +698,28 @@ defineExpose({ refreshProject: loadProjectSessions })
           </template>
         </div>
 
-        <!-- Projects -->
-        <div class="flex-1 overflow-y-auto">
+        <!-- Projects / Recent tab bar -->
+        <div class="shrink-0 flex px-3 pt-2 gap-1" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 0;">
+          <button
+            v-for="tab in (['projects', 'recent'] as const)"
+            :key="tab"
+            class="px-3 py-1.5 text-[11px] font-medium capitalize rounded-t-md relative transition-colors"
+            :style="sidebarView === tab
+              ? 'color: var(--text-primary); background: var(--surface-base);'
+              : 'color: var(--text-tertiary); background: transparent;'"
+            @click="sidebarView = tab"
+          >
+            {{ tab === 'projects' ? 'Projects' : 'Recent' }}
+            <div
+              v-if="sidebarView === tab"
+              class="absolute bottom-0 left-2 right-2 h-0.5 rounded-full"
+              style="background: var(--accent);"
+            />
+          </button>
+        </div>
+
+        <!-- Projects view -->
+        <div v-if="sidebarView === 'projects'" class="flex-1 overflow-y-auto">
           <div v-if="isLoadingProjects" class="flex items-center justify-center py-8">
             <UIcon name="i-lucide-loader-2" class="size-5 animate-spin" style="color: var(--text-secondary);" />
           </div>
@@ -856,6 +910,49 @@ defineExpose({ refreshProject: loadProjectSessions })
             </div>
           </div>
         </div>
+
+        <!-- Recent sessions view -->
+        <div v-else-if="sidebarView === 'recent'" class="flex-1 overflow-y-auto">
+          <div v-if="recentLoading" class="flex items-center justify-center py-8">
+            <UIcon name="i-lucide-loader-2" class="size-5 animate-spin" style="color: var(--text-secondary);" />
+          </div>
+          <div v-else-if="recentSessions.length === 0" class="text-center py-8 px-4">
+            <UIcon name="i-lucide-history" class="size-8 mx-auto mb-3" style="color: var(--text-disabled);" />
+            <p class="text-[12px]" style="color: var(--text-secondary);">No sessions yet</p>
+          </div>
+          <div v-else class="px-2 pt-1 pb-2 space-y-0.5">
+            <button
+              v-for="s in recentSessions"
+              :key="s.sessionId"
+              class="w-full text-left px-2 py-2 rounded-lg hover-bg group transition-colors"
+              :style="currentSessionId === s.sessionId ? 'background: var(--accent-muted);' : ''"
+              @click="emit('sessionSelected', {
+                projectName: s.projectName,
+                sessionId: s.sessionId,
+                sessionSummary: s.title,
+                projectDisplayName: s.projectDisplayName,
+              })"
+            >
+              <p class="text-[12px] font-medium truncate leading-snug" style="color: var(--text-primary);">
+                {{ s.title || 'Untitled session' }}
+              </p>
+              <div class="flex items-center gap-2 mt-0.5 min-w-0">
+                <span
+                  class="text-[10px] px-1.5 py-px rounded font-mono truncate max-w-[7rem] shrink"
+                  style="background: var(--surface-raised); color: var(--text-disabled);"
+                >{{ s.projectDisplayName }}</span>
+                <span class="text-[10px] ml-auto shrink-0" style="color: var(--text-disabled);">
+                  {{ formatRelativeTime(s.timestamp) }}
+                </span>
+                <span class="text-[10px] flex items-center gap-0.5 shrink-0" style="color: var(--text-disabled);">
+                  <UIcon name="i-lucide-messages-square" class="size-3" />
+                  {{ s.messageCount }}
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
+
       </template>
     </template>
 
