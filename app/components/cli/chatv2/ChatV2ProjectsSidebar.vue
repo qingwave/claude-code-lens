@@ -411,6 +411,9 @@ function confirmDelete() {
     emit('sessionDeleted', { projectName: deleteMeta.value.projectName, sessionId: deleteMeta.value.sessionId })
     const state = projectState[deleteMeta.value.projectName]
     if (state) state.sessions = state.sessions.filter(s => s.id !== deleteMeta.value!.sessionId)
+    // Remove from recent list immediately
+    const deletedId = deleteMeta.value.sessionId
+    recentSessions.value = recentSessions.value.filter(s => s.sessionId !== deletedId)
   } else {
     emit('projectDeleted', { projectName: deleteMeta.value.projectName })
   }
@@ -761,7 +764,6 @@ defineExpose({ refreshProject: loadProjectSessions })
               </template>
 
               <template v-else>
-                <!-- Project name + count + time — single row -->
                 <div class="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
                   <span class="text-[12px] font-medium truncate" style="color: var(--text-primary);">{{ project.displayName }}</span>
                   <span class="text-[10px] shrink-0 tabular-nums" style="color: var(--text-disabled);">{{
@@ -771,52 +773,54 @@ defineExpose({ refreshProject: loadProjectSessions })
                           ? `${getProjState(project.name).sessions.length}+`
                           : getProjState(project.name).sessions.length || project.sessionCount)
                   }}</span>
-                  <span class="text-[10px] shrink-0 ml-auto group-hover/proj:opacity-0 transition-opacity" style="color: var(--text-disabled);">
-                    {{ formatRelativeTime(project.lastActivity) }}
-                  </span>
                 </div>
 
-                <!-- Actions: fade in on hover, positioned over the time text -->
-                <div class="flex items-center gap-0 opacity-0 group-hover/proj:opacity-100 transition-opacity shrink-0" @click.stop>
-                  <button
-                    class="p-1 rounded hover-bg"
-                    style="color: var(--accent);"
-                    title="New chat"
-                    @click.stop="handleNewChat(project.path, project.displayName)"
-                  >
-                    <UIcon name="i-lucide-plus" class="size-3.5" />
-                  </button>
-                  <button
-                    v-if="!project.path?.endsWith('/.claude')"
-                    class="p-1 rounded hover-bg"
-                    style="color: var(--text-tertiary);"
-                    title="Settings"
-                    @click.stop="openConfig(project.name, project.path)"
-                  >
-                    <UIcon name="i-lucide-settings" class="size-3.5" />
-                  </button>
-                  <button
-                    class="p-1 rounded hover-bg"
-                    style="color: var(--text-tertiary);"
-                    title="Rename"
-                    @click.stop="startEditProject(project, $event)"
-                  >
-                    <UIcon name="i-lucide-pencil" class="size-3" />
-                  </button>
-                  <button
-                    class="p-1 rounded hover-bg"
-                    style="color: var(--error, #ef4444);"
-                    title="Delete"
-                    @click.stop="openProjectDelete(project, $event)"
-                  >
-                    <UIcon name="i-lucide-trash-2" class="size-3" />
-                  </button>
+                <!-- Time + actions overlay -->
+                <div class="relative flex items-center shrink-0" @click.stop>
+                  <span class="text-[10px] shrink-0 group-hover/proj:opacity-0 transition-opacity" style="color: var(--text-disabled);">
+                    {{ formatRelativeTime(project.lastActivity) }}
+                  </span>
+                  <div class="absolute right-0 flex items-center gap-0 opacity-0 group-hover/proj:opacity-100 transition-opacity">
+                    <button
+                      class="p-1 rounded hover-bg"
+                      style="color: var(--accent);"
+                      title="New chat"
+                      @click.stop="handleNewChat(project.path, project.displayName)"
+                    >
+                      <UIcon name="i-lucide-plus" class="size-3.5" />
+                    </button>
+                    <button
+                      v-if="!project.path?.endsWith('/.claude')"
+                      class="p-1 rounded hover-bg"
+                      style="color: var(--text-tertiary);"
+                      title="Settings"
+                      @click.stop="openConfig(project.name, project.path)"
+                    >
+                      <UIcon name="i-lucide-settings" class="size-3.5" />
+                    </button>
+                    <button
+                      class="p-1 rounded hover-bg"
+                      style="color: var(--text-tertiary);"
+                      title="Rename"
+                      @click.stop="startEditProject(project, $event)"
+                    >
+                      <UIcon name="i-lucide-pencil" class="size-3" />
+                    </button>
+                    <button
+                      class="p-1 rounded hover-bg"
+                      style="color: var(--error, #ef4444);"
+                      title="Delete"
+                      @click.stop="openProjectDelete(project, $event)"
+                    >
+                      <UIcon name="i-lucide-trash-2" class="size-3" />
+                    </button>
+                  </div>
                 </div>
               </template>
             </div>
 
             <!-- Expanded content -->
-            <div v-if="getProjState(project.name).expanded" class="mb-1">
+            <div v-if="getProjState(project.name).expanded" class="mt-0.5 mb-1">
 
               <!-- Sessions -->
               <div>
@@ -829,11 +833,10 @@ defineExpose({ refreshProject: loadProjectSessions })
                     ? getProjState(project.name).sessions
                     : getProjState(project.name).sessions.slice(0, 3)"
                   :key="session.id"
-                  class="relative flex items-center gap-2 pl-4 pr-2 py-2 cursor-pointer group/session rounded-r-lg"
-                  :class="props.isLoadingMessages ? 'opacity-60 pointer-events-none' : 'hover-bg'"
+                  class="relative flex items-center gap-2 pl-4 pr-2 py-2 cursor-pointer group/session rounded-lg transition-all hover-bg mb-0.5"
+                  :class="props.isLoadingMessages ? 'opacity-60 pointer-events-none' : ''"
                   :style="{
-                    background: (selectedSession?.id === session.id || currentSessionId === session.id) ? 'var(--accent-light)' : '',
-                    borderLeft: (selectedSession?.id === session.id || currentSessionId === session.id) ? '3px solid var(--accent)' : '3px solid transparent',
+                    background: (selectedSession?.id === session.id || currentSessionId === session.id) ? 'rgba(0,0,0,0.04)' : '',
                   }"
                   @click="handleSessionClick(project, session)"
                 >
@@ -852,13 +855,15 @@ defineExpose({ refreshProject: loadProjectSessions })
                   <template v-else>
                     <div class="flex-1 min-w-0">
                       <div class="text-[12px] font-medium truncate" style="color: var(--text-primary);">{{ session.summary || 'Session' }}</div>
-                      <div class="text-[10px] mt-0.5" style="color: var(--text-tertiary);">{{ session.messageCount }} msgs · {{ formatRelativeTime(session.lastActivity) }}</div>
                     </div>
                     <div class="relative flex items-center shrink-0">
                       <div v-if="isSessionLive(session.lastActivity)" class="absolute inset-0 flex items-center justify-center group-hover/session:opacity-0 transition-opacity pointer-events-none">
                         <div class="size-1.5 rounded-full animate-pulse" style="background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.5);" />
                       </div>
-                      <div class="flex items-center gap-0.5 opacity-0 group-hover/session:opacity-100 transition-opacity">
+                      <div v-else class="flex items-center gap-1.5 group-hover/session:opacity-0 transition-opacity">
+                        <span class="text-[10px] shrink-0" style="color: var(--text-disabled);">{{ formatRelativeTime(session.lastActivity) }}</span>
+                      </div>
+                      <div class="absolute right-0 flex items-center gap-0.5 opacity-0 group-hover/session:opacity-100 transition-opacity">
                         <button class="p-1 rounded hover-bg" @click.stop="startEditSession(project.name, session, $event)">
                           <UIcon name="i-lucide-pencil" class="size-3" style="color: var(--text-tertiary);" />
                         </button>
@@ -874,8 +879,8 @@ defineExpose({ refreshProject: loadProjectSessions })
                 <template v-if="!getProjState(project.name).loading">
                   <button
                     v-if="!getProjState(project.name).sessionsExpanded && getProjState(project.name).sessions.length > 3"
-                    class="w-full pl-4 pr-2 py-1.5 text-left text-[11px] hover-bg rounded-r-lg flex items-center gap-1.5"
-                    style="color: var(--text-tertiary); width: calc(100% - 16px);"
+                    class="w-full pl-4 pr-2 py-1.5 text-left text-[11px] hover-bg rounded-lg flex items-center gap-1.5"
+                    style="color: var(--text-tertiary);"
                     @click.stop="getProjState(project.name).sessionsExpanded = true"
                   >
                     <UIcon name="i-lucide-chevron-down" class="size-3" />
@@ -885,8 +890,8 @@ defineExpose({ refreshProject: loadProjectSessions })
                   <template v-else-if="getProjState(project.name).sessionsExpanded">
                     <button
                       v-if="getProjState(project.name).hasMore"
-                      class="w-full pl-4 pr-2 py-1.5 text-left text-[11px] hover-bg rounded-r-lg"
-                      style="color: var(--text-tertiary); width: calc(100% - 16px);"
+                      class="w-full pl-4 pr-2 py-1.5 text-left text-[11px] hover-bg rounded-lg"
+                      style="color: var(--text-tertiary);"
                       @click.stop="loadMoreProjectSessions(project.name)"
                     >Load more…</button>
                     <button
@@ -920,12 +925,14 @@ defineExpose({ refreshProject: loadProjectSessions })
             <UIcon name="i-lucide-history" class="size-8 mx-auto mb-3" style="color: var(--text-disabled);" />
             <p class="text-[12px]" style="color: var(--text-secondary);">No sessions yet</p>
           </div>
-          <div v-else class="px-2 pt-1 pb-2 space-y-0.5">
-            <button
+          <div v-else class="px-2 pt-1 pb-2">
+            <div
               v-for="s in recentSessions"
               :key="s.sessionId"
-              class="w-full text-left px-2 py-2 rounded-lg hover-bg group transition-colors"
-              :style="currentSessionId === s.sessionId ? 'background: var(--accent-muted);' : ''"
+              class="relative flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer group/session transition-all hover-bg mb-0.5"
+              :style="{
+                background: currentSessionId === s.sessionId ? 'rgba(0,0,0,0.04)' : '',
+              }"
               @click="emit('sessionSelected', {
                 projectName: s.projectName,
                 sessionId: s.sessionId,
@@ -933,23 +940,27 @@ defineExpose({ refreshProject: loadProjectSessions })
                 projectDisplayName: s.projectDisplayName,
               })"
             >
-              <p class="text-[12px] font-medium truncate leading-snug" style="color: var(--text-primary);">
-                {{ s.title || 'Untitled session' }}
-              </p>
-              <div class="flex items-center gap-2 mt-0.5 min-w-0">
-                <span
-                  class="text-[10px] px-1.5 py-px rounded font-mono truncate max-w-[7rem] shrink"
-                  style="background: var(--surface-raised); color: var(--text-disabled);"
-                >{{ s.projectDisplayName }}</span>
-                <span class="text-[10px] ml-auto shrink-0" style="color: var(--text-disabled);">
-                  {{ formatRelativeTime(s.timestamp) }}
-                </span>
-                <span class="text-[10px] flex items-center gap-0.5 shrink-0" style="color: var(--text-disabled);">
-                  <UIcon name="i-lucide-messages-square" class="size-3" />
-                  {{ s.messageCount }}
-                </span>
+              <div class="flex-1 min-w-0">
+                <div class="text-[12px] font-medium truncate" style="color: var(--text-primary);">{{ s.title || 'Session' }}</div>
+                <div class="flex items-center justify-between gap-2 mt-0.5 min-w-0">
+                  <div class="flex items-center gap-1 min-w-0">
+                    <span
+                      class="text-[10px] px-1.5 py-px rounded font-mono truncate max-w-[7rem] shrink"
+                      style="background: var(--surface-raised); color: var(--text-disabled);"
+                    >{{ s.projectDisplayName }}</span>
+                    <span class="text-[10px] shrink-0" style="color: var(--text-disabled);">{{ s.messageCount }}</span>
+                  </div>
+                  <span class="text-[10px] shrink-0" style="color: var(--text-disabled);">{{ formatRelativeTime(s.timestamp) }}</span>
+                </div>
               </div>
-            </button>
+              <div class="relative flex items-center shrink-0">
+                <div class="flex items-center gap-0.5 opacity-0 group-hover/session:opacity-100 transition-opacity">
+                  <button class="p-1 rounded hover-bg" @click.stop="emit('sessionSelected', { projectName: s.projectName, sessionId: s.sessionId, sessionSummary: s.title, projectDisplayName: s.projectDisplayName })">
+                    <UIcon name="i-lucide-arrow-up-right" class="size-3" style="color: var(--text-tertiary);" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

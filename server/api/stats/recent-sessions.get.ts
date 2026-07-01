@@ -67,6 +67,7 @@ export default defineEventHandler(async (): Promise<RecentSession[]> => {
 
   for (const c of top) {
     let title = ''
+    let firstUserMessage = ''
     let firstTimestamp = ''
     let messageCount = 0
     let toolCallCount = 0
@@ -96,15 +97,29 @@ export default defineEventHandler(async (): Promise<RecentSession[]> => {
         cwd = obj.cwd
       }
 
-      // Capture AI-generated title
+      // summary entry (highest priority)
+      if (obj.type === 'summary' && typeof (obj as any).summary === 'string') {
+        title = (obj as any).summary as string
+      }
+
+      // AI-generated title
       if (obj.type === 'ai-title' && typeof (obj as any).aiTitle === 'string') {
         title = (obj as any).aiTitle as string
       }
 
-      // Count user/assistant messages
+      // Count user/assistant messages, capture first user message as fallback
       const role = (obj as any).message?.role
       if (role === 'user' || role === 'assistant') {
         messageCount++
+      }
+      if (!firstUserMessage && role === 'user') {
+        const content = (obj as any).message?.content
+        if (typeof content === 'string') {
+          firstUserMessage = content.slice(0, 100).trim()
+        } else if (Array.isArray(content)) {
+          const textBlock = content.find((b: any) => b?.type === 'text' && typeof b.text === 'string')
+          if (textBlock) firstUserMessage = (textBlock.text as string).slice(0, 100).trim()
+        }
       }
 
       // Count tool calls in assistant content
@@ -118,6 +133,11 @@ export default defineEventHandler(async (): Promise<RecentSession[]> => {
 
     // Skip empty sessions
     if (messageCount === 0) continue
+
+    // Fallback to first user message if no ai-title/summary
+    if (!title && firstUserMessage) {
+      title = firstUserMessage.length > 100 ? firstUserMessage.slice(0, 100) + '...' : firstUserMessage
+    }
 
     // Derive display name from actual cwd, falling back to project dir name
     const displayName = cwd
