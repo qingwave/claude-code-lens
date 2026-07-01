@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { getAgentColor } from "~/utils/colors";
-import { MODEL_IDS, getModelLabel, getModelColor, getModelBadgeClasses } from "~/utils/models";
+import { getModelBadgeClasses } from "~/utils/models";
 
 const { claudeDir, set: setDir } = useClaudeDir();
 const { agents, fetchAll: fetchAgents } = useAgents();
@@ -144,31 +144,6 @@ async function changeDir() {
   }
 }
 
-const UNSET_KEY = 'unset';
-const modelBreakdown = computed(() => {
-  // Build initial counts from the canonical MODEL_IDS list — no hardcoded strings
-  const counts: Record<string, number> = Object.fromEntries(
-    [...MODEL_IDS, UNSET_KEY].map((k) => [k, 0])
-  );
-  for (const a of agents.value) {
-    const m = a.frontmatter.model;
-    const key = m && m in counts ? m : UNSET_KEY;
-    counts[key] = (counts[key] ?? 0) + 1;
-  }
-  return counts;
-});
-
-const totalAgents = computed(() => agents.value.length);
-const modelPercentages = computed(() => {
-  if (!totalAgents.value) return {};
-  const result: Record<string, number> = {};
-  for (const [model, count] of Object.entries(modelBreakdown.value)) {
-    if (count > 0) result[model] = (count / totalAgents.value) * 100;
-  }
-  return result;
-});
-
-
 const hasContent = computed(
   () =>
     agents.value.length > 0 ||
@@ -244,12 +219,15 @@ const statItems = computed(() => [
   <div>
     <PageHeader title="Dashboard" />
 
-    <div class="px-6 py-5 stagger-section space-y-5">
-      <!-- Activity stats row (row 1) -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <template v-for="item in activityItems" :key="item.key">
+    <div class="px-6 py-5 stagger-section">
+
+      <!-- Overview: activity + config -->
+      <div class="mb-6">
+        <p class="text-[11px] font-semibold uppercase tracking-widest mb-1.5 px-0.5" style="color: var(--text-disabled)">Overview</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <NuxtLink
-            v-if="item.to"
+            v-for="item in [...activityItems, ...statItems]"
+            :key="item.key"
             :to="item.to"
             class="relative rounded-xl p-5 focus-ring hover-stat overflow-hidden group bg-card"
           >
@@ -259,120 +237,31 @@ const statItems = computed(() => [
             />
             <div class="relative">
               <div class="flex items-center gap-2 mb-3">
-                <UIcon
-                  :name="item.icon"
-                  class="size-4 text-meta group-hover:text-[var(--accent)] transition-colors duration-200"
-                />
+                <UIcon :name="item.icon" class="size-4 text-meta group-hover:text-[var(--accent)] transition-colors duration-200" />
                 <span class="text-[12px] font-medium text-label">{{ item.label }}</span>
               </div>
               <span class="stat-number counter-animate">{{ item.count.toLocaleString() }}</span>
             </div>
           </NuxtLink>
-          <div
-            v-else
-            class="relative rounded-xl p-5 overflow-hidden bg-card"
-          >
-            <div class="relative">
-              <div class="flex items-center gap-2 mb-3">
-                <UIcon :name="item.icon" class="size-4 text-meta" />
-                <span class="text-[12px] font-medium text-label">{{ item.label }}</span>
-              </div>
-              <span class="stat-number counter-animate">{{ item.count.toLocaleString() }}</span>
-            </div>
-          </div>
-        </template>
-      </div>
-
-      <!-- Config stats row (row 2) -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <NuxtLink
-          v-for="item in statItems"
-          :key="item.to"
-          :to="item.to"
-          class="relative rounded-xl p-5 focus-ring hover-stat overflow-hidden group bg-card"
-        >
-          <!-- Subtle accent gradient on hover -->
-          <div
-            class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-            style="
-              background: radial-gradient(
-                ellipse at top left,
-                var(--accent-muted) 0%,
-                transparent 60%
-              );
-            "
-          />
-          <div class="relative">
-            <div class="flex items-center gap-2 mb-3">
-              <UIcon
-                :name="item.icon"
-                class="size-4 text-meta group-hover:text-[var(--accent)] transition-colors duration-200"
-              />
-              <span class="text-[12px] font-medium text-label">{{
-                item.label
-              }}</span>
-            </div>
-            <span class="stat-number counter-animate">{{ item.count }}</span>
-          </div>
-        </NuxtLink>
-      </div>
-
-      <!-- Model breakdown (visual bar) -->
-      <div
-        v-if="agents.length > 0"
-        class="rounded-xl px-5 py-4 bg-card"
-      >
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-section-title">Model Distribution</span>
-          <span class="text-[11px] text-meta font-mono"
-            >{{ totalAgents }} agent{{ totalAgents === 1 ? "" : "s" }}</span
-          >
-        </div>
-
-        <!-- Proportional bar -->
-        <div class="proportion-bar mb-3">
-          <div
-            v-for="(pct, model) in modelPercentages"
-            :key="model"
-            class="proportion-bar__segment"
-            :style="{
-              flexGrow: pct,
-              background: getModelColor(model),
-            }"
-          />
-        </div>
-
-        <!-- Legend -->
-        <div class="flex items-center gap-5">
-          <div
-            v-for="(count, model) in modelBreakdown"
-            :key="model"
-            class="flex items-center gap-2"
-          >
-            <div
-              class="size-2 rounded-full"
-              :style="{ background: getModelColor(model) }"
-            />
-            <span
-              class="text-[11px] font-medium"
-              style="color: var(--text-secondary)"
-              >{{ getModelLabel(model) }}</span
-            >
-            <span class="font-mono text-[11px] tabular-nums text-meta">{{
-              count
-            }}</span>
-          </div>
         </div>
       </div>
 
-      <!-- Activity card -->
-      <ActivityHeatmap />
+      <!-- Cost & efficiency -->
+      <div class="mb-6">
+        <p class="text-[11px] font-semibold uppercase tracking-widest mb-1.5 px-0.5" style="color: var(--text-disabled)">Cost</p>
+        <TokenStats />
+      </div>
+
+      <!-- Activity heatmap -->
+      <div class="mb-6">
+        <p class="text-[11px] font-semibold uppercase tracking-widest mb-1.5 px-0.5" style="color: var(--text-disabled)">Activity</p>
+        <ActivityHeatmap />
+      </div>
 
       <!-- Bento grid: Agents + Commands + Quick Actions -->
-      <div
-        v-if="hasContent"
-        class="grid grid-cols-1 md:grid-cols-3 gap-4"
-      >
+      <div v-if="hasContent" class="mb-6">
+        <p class="text-[11px] font-semibold uppercase tracking-widest mb-1.5 px-0.5" style="color: var(--text-disabled)">Assets</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
         <!-- Agents list (takes 2 cols) -->
         <div
           class="md:col-span-2 rounded-xl overflow-hidden"
@@ -380,30 +269,19 @@ const statItems = computed(() => [
         >
           <div
             class="flex items-center justify-between px-4 py-3"
-            style="
-              background: var(--surface-raised);
-              border-bottom: 1px solid var(--border-subtle);
-            "
+            style="background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);"
           >
             <h3 class="text-section-title flex items-center gap-2">
-              <UIcon
-                name="i-lucide-cpu"
-                class="size-4"
-                style="color: var(--accent)"
-              />
+              <UIcon name="i-lucide-cpu" class="size-4" style="color: var(--accent)" />
               Agents
             </h3>
             <NuxtLink
               to="/agents"
               class="text-[12px] focus-ring rounded px-1.5 py-0.5 hover-bg transition-colors"
               style="color: var(--accent)"
-              >View all</NuxtLink
-            >
+            >View all</NuxtLink>
           </div>
-          <div
-            class="divide-y"
-            style="divide-color: var(--border-subtle)"
-          >
+          <div class="divide-y" style="divide-color: var(--border-subtle)">
             <NuxtLink
               v-for="agent in agents.slice(0, 6)"
               :key="agent.slug"
@@ -414,194 +292,98 @@ const statItems = computed(() => [
                 class="size-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105"
                 :style="{
                   background: getAgentColor(agent.frontmatter.color) + '18',
-                  border:
-                    '1px solid ' +
-                    getAgentColor(agent.frontmatter.color) +
-                    '25',
+                  border: '1px solid ' + getAgentColor(agent.frontmatter.color) + '25',
                 }"
               >
-                <UIcon
-                  name="i-lucide-cpu"
-                  class="size-3.5"
-                  :style="{ color: getAgentColor(agent.frontmatter.color) }"
-                />
+                <UIcon name="i-lucide-cpu" class="size-3.5" :style="{ color: getAgentColor(agent.frontmatter.color) }" />
               </div>
               <div class="flex-1 min-w-0">
-                <span class="text-[13px] font-medium truncate block">
-                  {{ agent.frontmatter.name }}
-                </span>
-                <span
-                  v-if="agent.frontmatter.description"
-                  class="text-[11px] text-label truncate block"
-                >
+                <span class="text-[13px] font-medium truncate block">{{ agent.frontmatter.name }}</span>
+                <span v-if="agent.frontmatter.description" class="text-[11px] text-label truncate block">
                   {{ agent.frontmatter.description }}
                 </span>
               </div>
               <span
-                v-if="
-                  agent.frontmatter.model &&
-                  getModelBadgeClasses(agent.frontmatter.model)
-                "
+                v-if="agent.frontmatter.model && getModelBadgeClasses(agent.frontmatter.model)"
                 class="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-full shrink-0"
-                :class="[
-                  getModelBadgeClasses(agent.frontmatter.model).bg,
-                  getModelBadgeClasses(agent.frontmatter.model).text,
-                ]"
-              >
-                {{ agent.frontmatter.model }}
-              </span>
+                :class="[getModelBadgeClasses(agent.frontmatter.model).bg, getModelBadgeClasses(agent.frontmatter.model).text]"
+              >{{ agent.frontmatter.model }}</span>
             </NuxtLink>
           </div>
         </div>
 
-        <!-- Right column: Commands + Quick Actions stacked -->
+        <!-- Right column: Commands + Quick Actions -->
         <div class="space-y-4">
           <!-- Commands -->
-          <div
-            class="rounded-xl overflow-hidden"
-            style="border: 1px solid var(--border-subtle)"
-          >
+          <div class="rounded-xl overflow-hidden" style="border: 1px solid var(--border-subtle)">
             <div
               class="flex items-center justify-between px-4 py-3"
-              style="
-                background: var(--surface-raised);
-                border-bottom: 1px solid var(--border-subtle);
-              "
+              style="background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);"
             >
               <h3 class="text-section-title flex items-center gap-2">
-                <UIcon
-                  name="i-lucide-terminal"
-                  class="size-4"
-                  style="color: var(--accent)"
-                />
+                <UIcon name="i-lucide-terminal" class="size-4" style="color: var(--accent)" />
                 Commands
               </h3>
-              <NuxtLink
-                to="/commands"
-                class="text-[12px] focus-ring rounded px-1.5 py-0.5 hover-bg transition-colors"
-                style="color: var(--accent)"
-                >View all</NuxtLink
-              >
+              <NuxtLink to="/commands" class="text-[12px] focus-ring rounded px-1.5 py-0.5 hover-bg transition-colors" style="color: var(--accent)">View all</NuxtLink>
             </div>
-            <div
-              class="divide-y"
-              style="divide-color: var(--border-subtle)"
-            >
+            <div class="divide-y" style="divide-color: var(--border-subtle)">
               <NuxtLink
                 v-for="cmd in commands.slice(0, 4)"
                 :key="cmd.slug"
                 :to="`/commands/${cmd.slug}`"
                 class="flex items-center gap-2.5 px-4 py-2.5 hover-bg"
               >
-                <span
-                  class="font-mono text-[11px] shrink-0"
-                  style="color: var(--accent)"
-                  >/</span
-                >
-                <span class="text-[12px] truncate text-body flex-1">
-                  {{ cmd.frontmatter.name }}
-                </span>
-                <span class="text-[10px] shrink-0 text-meta font-mono">
-                  {{ cmd.directory }}
-                </span>
+                <span class="font-mono text-[11px] shrink-0" style="color: var(--accent)">/</span>
+                <span class="text-[12px] truncate text-body flex-1">{{ cmd.frontmatter.name }}</span>
+                <span class="text-[10px] shrink-0 text-meta font-mono">{{ cmd.directory }}</span>
               </NuxtLink>
             </div>
           </div>
 
           <!-- Quick Actions -->
           <div class="space-y-2">
-            <NuxtLink
-              to="/graph"
-              class="block rounded-xl p-4 focus-ring hover-card bg-card group"
-            >
+            <NuxtLink to="/graph" class="block rounded-xl p-4 focus-ring hover-card bg-card group">
               <div class="flex items-center gap-3">
-                <div
-                  class="size-8 rounded-lg flex items-center justify-center shrink-0"
-                  style="
-                    background: var(--accent-muted);
-                    border: 1px solid rgba(229, 169, 62, 0.12);
-                  "
-                >
-                  <UIcon
-                    name="i-lucide-workflow"
-                    class="size-4"
-                    style="color: var(--accent)"
-                  />
+                <div class="size-8 rounded-lg flex items-center justify-center shrink-0" style="background: var(--accent-muted); border: 1px solid rgba(229,169,62,0.12);">
+                  <UIcon name="i-lucide-workflow" class="size-4" style="color: var(--accent)" />
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="text-[13px] font-medium">Relationship Graph</div>
-                  <div class="text-[11px] text-label">
-                    Visualize connections
-                  </div>
+                  <div class="text-[11px] text-label">Visualize connections</div>
                 </div>
-                <UIcon
-                  name="i-lucide-arrow-right"
-                  class="size-4 text-meta opacity-0 group-hover:opacity-100 transition-all duration-200 group-hover:translate-x-0.5"
-                />
+                <UIcon name="i-lucide-arrow-right" class="size-4 text-meta opacity-0 group-hover:opacity-100 transition-all duration-200 group-hover:translate-x-0.5" />
               </div>
             </NuxtLink>
 
-            <NuxtLink
-              to="/workflows"
-              class="block rounded-xl p-4 focus-ring hover-card bg-card group"
-            >
+            <NuxtLink to="/workflows" class="block rounded-xl p-4 focus-ring hover-card bg-card group">
               <div class="flex items-center gap-3">
-                <div
-                  class="size-8 rounded-lg flex items-center justify-center shrink-0"
-                  style="
-                    background: var(--accent-secondary-muted);
-                    border: 1px solid rgba(99, 102, 241, 0.12);
-                  "
-                >
-                  <UIcon
-                    name="i-lucide-git-branch"
-                    class="size-4"
-                    style="color: var(--accent-secondary)"
-                  />
+                <div class="size-8 rounded-lg flex items-center justify-center shrink-0" style="background: var(--accent-muted); border: 1px solid rgba(229,169,62,0.12);">
+                  <UIcon name="i-lucide-git-branch" class="size-4" style="color: var(--accent)" />
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="text-[13px] font-medium">Create Workflow</div>
                   <div class="text-[11px] text-label">Multi-step pipelines</div>
                 </div>
-                <UIcon
-                  name="i-lucide-arrow-right"
-                  class="size-4 text-meta opacity-0 group-hover:opacity-100 transition-all duration-200 group-hover:translate-x-0.5"
-                />
+                <UIcon name="i-lucide-arrow-right" class="size-4 text-meta opacity-0 group-hover:opacity-100 transition-all duration-200 group-hover:translate-x-0.5" />
               </div>
             </NuxtLink>
 
-            <NuxtLink
-              to="/explore"
-              class="block rounded-xl p-4 focus-ring hover-card bg-card group"
-            >
+            <NuxtLink to="/explore" class="block rounded-xl p-4 focus-ring hover-card bg-card group">
               <div class="flex items-center gap-3">
-                <div
-                  class="size-8 rounded-lg flex items-center justify-center shrink-0"
-                  style="
-                    background: var(--accent-muted);
-                    border: 1px solid rgba(229, 169, 62, 0.12);
-                  "
-                >
-                  <UIcon
-                    name="i-lucide-compass"
-                    class="size-4"
-                    style="color: var(--accent)"
-                  />
+                <div class="size-8 rounded-lg flex items-center justify-center shrink-0" style="background: var(--accent-muted); border: 1px solid rgba(229,169,62,0.12);">
+                  <UIcon name="i-lucide-compass" class="size-4" style="color: var(--accent)" />
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="text-[13px] font-medium">Explore</div>
                   <div class="text-[11px] text-label">Templates & extensions</div>
                 </div>
-                <UIcon
-                  name="i-lucide-arrow-right"
-                  class="size-4 text-meta opacity-0 group-hover:opacity-100 transition-all duration-200 group-hover:translate-x-0.5"
-                />
+                <UIcon name="i-lucide-arrow-right" class="size-4 text-meta opacity-0 group-hover:opacity-100 transition-all duration-200 group-hover:translate-x-0.5" />
               </div>
             </NuxtLink>
           </div>
         </div>
+        </div>
       </div>
-
       <!-- Welcome onboarding (first-run) -->
       <WelcomeOnboarding
         v-if="!hasContent"
@@ -616,27 +398,15 @@ const statItems = computed(() => [
       >
         <div
           class="flex items-center justify-between px-4 py-3"
-          style="
-            background: var(--surface-raised);
-            border-bottom: 1px solid var(--border-subtle);
-          "
+          style="background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);"
         >
           <h3 class="text-section-title flex items-center gap-2">
-            <UIcon
-              name="i-lucide-lightbulb"
-              class="size-4"
-              style="color: var(--accent)"
-            />
+            <UIcon name="i-lucide-lightbulb" class="size-4" style="color: var(--accent)" />
             Suggestions
           </h3>
-          <span class="font-mono text-[10px] text-meta">{{
-            suggestions.length
-          }}</span>
+          <span class="font-mono text-[10px] text-meta">{{ suggestions.length }}</span>
         </div>
-        <div
-          class="divide-y"
-          style="divide-color: var(--border-subtle)"
-        >
+        <div class="divide-y" style="divide-color: var(--border-subtle)">
           <NuxtLink
             v-for="(s, idx) in suggestions.slice(0, 5)"
             :key="idx"
@@ -644,65 +414,31 @@ const statItems = computed(() => [
             class="flex items-center gap-3 px-4 py-3 hover-bg group"
           >
             <UIcon
-              :name="
-                s.severity === 'warning'
-                  ? 'i-lucide-alert-triangle'
-                  : 'i-lucide-info'
-              "
+              :name="s.severity === 'warning' ? 'i-lucide-alert-triangle' : 'i-lucide-info'"
               class="size-4 shrink-0"
-              :style="{
-                color:
-                  s.severity === 'warning'
-                    ? 'var(--warning, #eab308)'
-                    : 'var(--text-disabled)',
-              }"
+              :style="{ color: s.severity === 'warning' ? 'var(--warning, #eab308)' : 'var(--text-disabled)' }"
             />
             <span class="text-[12px] text-label flex-1">{{ s.message }}</span>
-            <UIcon
-              name="i-lucide-chevron-right"
-              class="size-3.5 text-meta opacity-0 group-hover:opacity-100 transition-opacity"
-            />
+            <UIcon name="i-lucide-chevron-right" class="size-3.5 text-meta opacity-0 group-hover:opacity-100 transition-opacity" />
           </NuxtLink>
         </div>
       </div>
 
       <!-- Advanced: directory picker -->
       <details>
-        <summary
-          class="text-[12px] flex items-center gap-1.5 text-meta cursor-pointer"
-        >
-          <UIcon
-            name="i-lucide-settings"
-            class="size-3"
-          />
+        <summary class="text-[12px] flex items-center gap-1.5 text-meta cursor-pointer">
+          <UIcon name="i-lucide-settings" class="size-3" />
           Advanced: Configuration folder
         </summary>
         <div class="rounded-xl p-4 mt-2 bg-card">
           <p class="text-[12px] mb-3 text-label">
-            This is where Claude Code stores your agents, commands, and
-            settings. The default is ~/.claude.
+            This is where Claude Code stores your agents, commands, and settings. The default is ~/.claude.
           </p>
           <div class="flex items-center gap-3">
-            <UIcon
-              name="i-lucide-folder"
-              class="size-4 shrink-0 text-meta"
-            />
-            <form
-              class="flex-1 flex gap-2"
-              @submit.prevent="changeDir"
-            >
-              <input
-                v-model="dirInput"
-                placeholder="~/.claude"
-                class="field-input flex-1"
-              />
-              <UButton
-                type="submit"
-                :loading="settingDir"
-                label="Load"
-                size="sm"
-                variant="soft"
-              />
+            <UIcon name="i-lucide-folder" class="size-4 shrink-0 text-meta" />
+            <form class="flex-1 flex gap-2" @submit.prevent="changeDir">
+              <input v-model="dirInput" placeholder="~/.claude" class="field-input flex-1" />
+              <UButton type="submit" :loading="settingDir" label="Load" size="sm" variant="soft" />
             </form>
           </div>
         </div>
@@ -711,18 +447,15 @@ const statItems = computed(() => [
       <!-- Keyboard shortcuts -->
       <div class="flex items-center gap-4 px-2 text-meta">
         <span class="text-[12px] flex items-center gap-1.5">
-          <kbd class="text-[10px] font-mono px-1 py-px rounded badge-subtle"
-            >&#x2318;K</kbd
-          >
+          <kbd class="text-[10px] font-mono px-1 py-px rounded badge-subtle">&#x2318;K</kbd>
           Search
         </span>
         <span class="text-[12px] flex items-center gap-1.5">
-          <kbd class="text-[10px] font-mono px-1 py-px rounded badge-subtle"
-            >&#x2318;S</kbd
-          >
+          <kbd class="text-[10px] font-mono px-1 py-px rounded badge-subtle">&#x2318;S</kbd>
           Save
         </span>
       </div>
+
     </div>
   </div>
 </template>
