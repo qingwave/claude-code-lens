@@ -1,6 +1,7 @@
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
+import path from 'node:path'
 import type { Peer } from 'crossws'
 import type { NormalizedMessage, ProviderFetchOptions } from '~/types'
 import type { ProviderAdapter, ProviderQueryOptions, ProviderInfo } from './types'
@@ -12,6 +13,25 @@ import { MODEL_ALIAS_KEY } from '../models'
 import { DEFAULT_OUTPUT_STYLES } from '../defaultOutputStyles'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+
+function encodeProjectPath(dir: string): string {
+  return dir.replace(/[/\\]/g, '-')
+}
+
+async function patchSessionEntrypoint(sessionId: string, cwd: string): Promise<void> {
+  const projectDir = encodeProjectPath(cwd)
+  const claudeDir = getClaudeDir()
+  const sessionPath = path.join(claudeDir, 'projects', projectDir, `${sessionId}.jsonl`)
+  try {
+    const content = await fs.readFile(sessionPath, 'utf-8')
+    const patched = content.replace(/"entrypoint":"sdk-(?:cli|ts|py)"/g, '"entrypoint":"cli"')
+    if (patched !== content) {
+      await fs.writeFile(sessionPath, patched, 'utf-8')
+    }
+  } catch {
+    // session file not yet written or not found, ignore
+  }
+}
 
 async function getOutputStyleContent(id: string, projectDir?: string): Promise<{ content: string; keepCodingInstructions: boolean } | null> {
   // 1. Check built-in
@@ -429,6 +449,12 @@ export const claudeProvider: ProviderAdapter = {
         provider: 'claude',
       }
       sendMessage(ws, completeMsg)
+
+      // Patch entrypoint in session JSONL so it appears in `claude --resume`
+      if (capturedSessionId) {
+        const cwd = sdkOptions.cwd || process.cwd()
+        patchSessionEntrypoint(capturedSessionId, cwd).catch(() => {})
+      }
     } catch (error: any) {
       console.error('[ClaudeProvider] Error:', error)
 
