@@ -120,13 +120,13 @@ const activeRightTab = ref<'context' | 'explorer' | 'git' | 'preview'>('context'
 const isCreatingSession = ref(false)
 const isInputFocused = ref(false)
 
-// 面板内分割：左侧树宽度，可拖拽
+// Panel split: left tree width, draggable
 const panelTreeWidth = ref(220)
 const isDraggingPanelTree = ref(false)
 const panelTreeDragStartX = ref(0)
 const panelTreeDragStartWidth = ref(0)
 
-// 面板内当前打开的文件（explorer/git 分割视图用）
+// Currently open file in panel (explorer/git split view)
 const panelOpenFile = ref<{ path: string; kind: 'file' | 'diff'; staged?: boolean } | null>(null)
 const panelDiffResult = ref<any | null>(null)
 const panelDiffPending = ref(false)
@@ -1540,7 +1540,7 @@ async function handleSessionDeleted(payload: { projectName: string; sessionId: s
 
 const { openFile, openDiff, closeEditor, state: fileEditorState } = useFileEditor()
 
-// 从消息中点击文件/图片 → Preview tab
+// Click file/image in message → Preview tab
 function handleOpenFile(filePath: string) {
   if (!filePath) return
   let absolutePath = filePath
@@ -1558,7 +1558,7 @@ function handleOpenFile(filePath: string) {
 // Ref to the Git panel so we can push diff stats back to it after fetch
 const gitPanelRef = ref<{ cacheDiff: (diff: any, staged: boolean) => void } | null>(null)
 
-// Git 面板点击文件 → 在面板内右侧展示 diff
+// Git panel click file → show diff on right side
 async function handleOpenDiff(filePath: string, staged: boolean) {
   await openPanelDiff(filePath, staged)
 }
@@ -2385,9 +2385,9 @@ function handleClosePreview() {
           <div class="flex-1 overflow-hidden flex flex-col">
             <ChatV2ContextDetails v-if="activeRightTab === 'context'" :metrics="contextMonitor.metrics.value" />
 
-            <!-- Explorer：左侧文件树 + 右侧文件内容 -->
+            <!-- Explorer: left file tree + right file content -->
             <div v-else-if="activeRightTab === 'explorer'" class="flex-1 flex min-h-0 overflow-hidden">
-              <!-- 左侧文件树 -->
+              <!-- Left file tree -->
               <div
                 class="flex flex-col overflow-hidden shrink-0 border-r"
                 :style="{ width: panelTreeWidth + 'px', borderColor: 'var(--border-subtle)', userSelect: isDraggingPanelTree ? 'none' : undefined }"
@@ -2397,25 +2397,19 @@ function handleClosePreview() {
                   @open-file="openPanelFile"
                 />
               </div>
-              <!-- 拖拽分割线 -->
-              <div
-                class="w-1 shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors z-10"
-                :class="isDraggingPanelTree ? 'bg-accent/40' : ''"
-                @mousedown="onPanelTreeDragStart"
-              />
-              <!-- 右侧内容区 -->
+              <!-- Drag divider -->
               <div class="flex-1 min-w-0 flex flex-col overflow-hidden" style="background: var(--surface-overlay);">
-                <!-- 空状态 -->
+                <!-- Empty state -->
                 <div v-if="!panelOpenFile || panelOpenFile.kind !== 'file'" class="flex-1 flex flex-col items-center justify-center gap-2" style="background: var(--surface-overlay);">
                   <UIcon name="i-lucide-file-code" class="size-8 opacity-20" style="color: var(--text-tertiary);" />
-                  <span class="text-[11px]" style="color: var(--text-tertiary);">选择文件查看内容</span>
+                  <span class="text-[11px]" style="color: var(--text-tertiary);">Select a file to preview</span>
                 </div>
-                <!-- 加载中 -->
+                <!-- Loading -->
                 <div v-else-if="panelFileLoading" class="flex-1 flex items-center justify-center" style="background: var(--surface-overlay);">
                   <UIcon name="i-lucide-loader-2" class="size-5 animate-spin mr-2" style="color: var(--text-tertiary);" />
                   <span class="text-[11px]" style="color: var(--text-tertiary);">Loading…</span>
                 </div>
-                <!-- 文件内容 -->
+                <!-- File content -->
                 <template v-else-if="panelOpenFile?.kind === 'file'">
                   <div class="shrink-0 px-3 py-2 border-b flex items-center gap-2" style="border-color: var(--border-subtle); background: var(--surface-raised);">
                     <UIcon name="i-lucide-file-code" class="size-3.5 shrink-0" style="color: var(--accent);" />
@@ -2427,9 +2421,9 @@ function handleClosePreview() {
               </div>
             </div>
 
-            <!-- Git：左侧变更列表 + 右侧 diff 内容 -->
+            <!-- Git: left change list + right diff content -->
             <div v-else-if="activeRightTab === 'git'" class="flex-1 flex min-h-0 overflow-hidden">
-              <!-- 左侧 git 列表 -->
+              <!-- Left git list -->
               <div
                 class="flex flex-col overflow-hidden shrink-0 border-r"
                 :style="{ width: panelTreeWidth + 'px', borderColor: 'var(--border-subtle)', userSelect: isDraggingPanelTree ? 'none' : undefined }"
@@ -2440,25 +2434,25 @@ function handleClosePreview() {
                   @open-diff="handleOpenDiff"
                 />
               </div>
-              <!-- 拖拽分割线 -->
+              <!-- Drag divider -->
               <div
                 class="w-1 shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors z-10"
                 :class="isDraggingPanelTree ? 'bg-accent/40' : ''"
                 @mousedown="onPanelTreeDragStart"
               />
-              <!-- 右侧 diff 内容区 -->
+              <!-- Right diff area -->
               <div class="flex-1 min-w-0 flex flex-col overflow-hidden" style="background: var(--surface-overlay);">
-                <!-- 空状态 -->
+                <!-- Empty state -->
                 <div v-if="!panelOpenFile || panelOpenFile.kind !== 'diff'" class="flex-1 flex flex-col items-center justify-center gap-2" style="background: var(--surface-overlay);">
                   <UIcon name="i-lucide-git-branch" class="size-8 opacity-20" style="color: var(--text-tertiary);" />
-                  <span class="text-[11px]" style="color: var(--text-tertiary);">选择文件查看 diff</span>
+                  <span class="text-[11px]" style="color: var(--text-tertiary);">Select a file to view diff</span>
                 </div>
-                <!-- 加载中 -->
+                <!-- Loading -->
                 <div v-else-if="panelDiffPending" class="flex-1 flex items-center justify-center" style="background: var(--surface-overlay);">
                   <UIcon name="i-lucide-loader-2" class="size-5 animate-spin mr-2" style="color: var(--text-tertiary);" />
                   <span class="text-[11px]" style="color: var(--text-tertiary);">Loading diff…</span>
                 </div>
-                <!-- diff 内容 -->
+                <!-- Diff content -->
                 <template v-else-if="panelOpenFile?.kind === 'diff' && panelDiffResult">
                   <div class="shrink-0 px-3 py-2 border-b flex items-center gap-2" style="border-color: var(--border-subtle); background: var(--surface-raised);">
                     <UIcon name="i-lucide-git-branch" class="size-3.5 shrink-0" style="color: var(--accent);" />
