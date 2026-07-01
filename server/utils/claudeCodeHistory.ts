@@ -469,6 +469,11 @@ async function parseJsonlSessions(filePath: string): Promise<{
               session.summary = (entry as any).summary
             }
 
+            // AI-generated title takes highest priority
+            if (entry.type === 'ai-title' && (entry as any).aiTitle) {
+              session.summary = (entry as any).aiTitle
+            }
+
             // Use first user message as summary if still "New Session"
             if (session.summary === 'New Session' && entry.message?.role === 'user') {
               const content = entry.message.content
