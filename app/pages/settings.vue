@@ -30,10 +30,11 @@ const showRemoveConfirm = ref(false)
 const repoToRemove = ref<{ owner: string; repo: string; type: 'skills' | 'agents'; count: number } | null>(null)
 
 onMounted(async () => {
-  await load()
-  syncRawJson()
+  await Promise.all([
+    load(),
+    syncRawJson()
+  ])
   loadClaudeMd()
-  loadMemoryMd()
 })
 
 onMounted(async () => {
@@ -260,70 +261,8 @@ async function saveStatusLine() {
 
 // ---- Hooks ----
 
-const hooks = computed(() => {
-  if (!settings.value?.hooks) return []
-  return Object.entries(settings.value.hooks as Record<string, unknown[]>).map(([event, list]) => ({
-    event,
-    commands: Array.isArray(list) ? list : [],
-  }))
-})
-
-const showAddHookModal = ref(false)
-const newHookEvent = ref<string | undefined>('')
-const newHookCommand = ref('')
-const newHookMatcher = ref('')
-
-const hookEventOptions = [
-  { value: 'PreToolUse', label: 'Before Claude uses a tool', description: 'Triggered just before a tool is executed' },
-  { value: 'PostToolUse', label: 'After Claude uses a tool', description: 'Triggered after a tool execution completes' },
-  { value: 'Notification', label: 'When a notification is sent', description: 'Triggered when the system sends a notification' },
-  { value: 'Stop', label: 'When Claude finishes', description: 'Triggered when the session finishes' },
-  { value: 'SubagentStop', label: 'When a sub-agent finishes', description: 'Triggered when a background sub-agent finishes' },
-  { value: 'PreCompact', label: 'Before context is compacted', description: 'Triggered before Claude compresses the context window' },
-]
-
-const hookEventLabels: Record<string, string> = {
-  PreToolUse: 'Before Claude uses a tool',
-  PostToolUse: 'After Claude uses a tool',
-  Notification: 'When a notification is sent',
-  Stop: 'When Claude finishes',
-  SubagentStop: 'When a sub-agent finishes',
-  PreCompact: 'Before context is compacted',
-}
-
-async function addHook() {
-  if (!newHookEvent.value || !newHookCommand.value) return
-  const currentHooks = (settings.value?.hooks || {}) as Record<string, unknown[]>
-  const eventHooks = [...(currentHooks[newHookEvent.value] || [])]
-
-  const hookEntry: Record<string, string> = { command: newHookCommand.value }
-  if (newHookMatcher.value) hookEntry.matcher = newHookMatcher.value
-
-  eventHooks.push(hookEntry)
-
-  await updateSetting({
-    hooks: { ...currentHooks, [newHookEvent.value]: eventHooks },
-  })
-
-  newHookEvent.value = ''
-  newHookCommand.value = ''
-  newHookMatcher.value = ''
-  showAddHookModal.value = false
-}
-
-async function removeHook(event: string, index: number) {
-  const currentHooks = (settings.value?.hooks || {}) as Record<string, unknown[]>
-  const eventHooks = [...(currentHooks[event] || [])]
-  eventHooks.splice(index, 1)
-
-  const updatedHooks = { ...currentHooks }
-  if (eventHooks.length === 0) {
-    delete updatedHooks[event]
-  } else {
-    updatedHooks[event] = eventHooks
-  }
-
-  await updateSetting({ hooks: Object.keys(updatedHooks).length > 0 ? updatedHooks : undefined })
+async function updateHooks(value: Record<string, unknown[]> | undefined) {
+  await updateSetting({ hooks: value })
 }
 
 // ---- CLAUDE.md ----
@@ -378,58 +317,6 @@ async function saveClaudeMd() {
 function createClaudeMd() {
   claudeMdDraft.value = CLAUDE_MD_DEFAULT
   claudeMdEditing.value = true
-}
-
-// ---- MEMORY.md ----
-
-const memoryMdContent = ref('')
-const memoryMdDraft = ref('')
-const memoryMdExists = ref(false)
-const memoryMdLoading = ref(false)
-const memoryMdSaving = ref(false)
-const memoryMdEditing = ref(false)
-const memoryMdDirty = computed(() => memoryMdDraft.value !== memoryMdContent.value)
-
-const MEMORY_MD_DEFAULT = `# Memory
-
-Claude will remember the following facts across all conversations:
-
--
-`
-
-async function loadMemoryMd() {
-  memoryMdLoading.value = true
-  try {
-    const res = await $fetch<{ exists: boolean; content: string }>('/api/memory-md')
-    memoryMdExists.value = res.exists
-    memoryMdContent.value = res.content
-    memoryMdDraft.value = res.content
-    memoryMdEditing.value = res.exists
-  } catch (e: any) {
-    toast.add({ title: 'Failed to load MEMORY.md', description: e.message, color: 'error' })
-  } finally {
-    memoryMdLoading.value = false
-  }
-}
-
-async function saveMemoryMd() {
-  memoryMdSaving.value = true
-  try {
-    await $fetch('/api/memory-md', { method: 'PUT', body: { content: memoryMdDraft.value } })
-    memoryMdContent.value = memoryMdDraft.value
-    memoryMdExists.value = true
-    memoryMdEditing.value = true
-    toast.add({ title: 'MEMORY.md saved', color: 'success' })
-  } catch (e: any) {
-    toast.add({ title: 'Failed to save MEMORY.md', description: e.message, color: 'error' })
-  } finally {
-    memoryMdSaving.value = false
-  }
-}
-
-function createMemoryMd() {
-  memoryMdDraft.value = MEMORY_MD_DEFAULT
-  memoryMdEditing.value = true
 }
 
 // ---- Raw JSON ----
@@ -917,58 +804,11 @@ async function browseWorkingDir() {
       </div>
 
       <!-- Hooks -->
-      <div
-        class="rounded-xl p-5 space-y-4 bg-card"
-      >
-        <div class="flex items-center justify-between">
-          <h3 class="text-section-title">Automations</h3>
-          <UButton label="Add Automation" icon="i-lucide-plus" size="xs" variant="soft" @click="showAddHookModal = true" />
-        </div>
-        <p class="text-[12px] text-meta">
-          Run shell commands automatically when certain events happen in Claude Code.
-        </p>
-
-        <div v-if="hooks.length === 0" class="text-[13px] text-label">
-          No automations configured.
-        </div>
-
-        <div v-else class="space-y-3">
-          <div v-for="hook in hooks" :key="hook.event">
-            <div class="flex items-center gap-2 mb-1.5">
-              <UIcon name="i-lucide-webhook" class="size-3.5 text-meta" />
-              <span class="text-[12px] font-medium text-body">{{ hookEventLabels[hook.event] || hook.event }}</span>
-              <span class="font-mono text-[10px] text-meta">{{ hook.commands.length }}</span>
-            </div>
-            <div class="ml-5 space-y-1">
-              <div
-                v-for="(cmd, idx) in hook.commands"
-                :key="idx"
-                class="flex items-center justify-between py-1.5 px-3 rounded-lg group"
-                style="background: var(--input-bg);"
-              >
-                <div class="flex-1 min-w-0">
-                  <span class="font-mono text-[12px] truncate block text-label">
-                    {{ typeof cmd === 'string' ? cmd : (cmd as any).command || JSON.stringify(cmd) }}
-                  </span>
-                  <span
-                    v-if="typeof cmd === 'object' && (cmd as any).matcher"
-                    class="font-mono text-[10px] block mt-0.5 text-meta"
-                  >
-                    matcher: {{ (cmd as any).matcher }}
-                  </span>
-                </div>
-                <button
-                  class="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 -m-0.5 rounded focus-ring"
-                  style="color: var(--error);"
-                  aria-label="Delete hook"
-                  @click="removeHook(hook.event, idx)"
-                >
-                  <UIcon name="i-lucide-trash-2" class="size-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="rounded-xl p-5 bg-card">
+        <HooksManager
+          :model-value="(settings?.hooks as Record<string, unknown[]> | undefined)"
+          @update:model-value="updateHooks"
+        />
       </div>
 
       <!-- CLAUDE.md -->
@@ -1040,61 +880,8 @@ async function browseWorkingDir() {
       </div>
 
       <!-- MEMORY.md -->
-      <div class="rounded-xl p-5 space-y-4 bg-card">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <h3 class="text-section-title">MEMORY.md</h3>
-            <span
-              v-if="memoryMdExists"
-              class="text-[10px] px-2 py-0.5 rounded-full font-medium"
-              style="background: rgba(34,197,94,0.1); color: var(--success, #22c55e);"
-            >exists</span>
-            <span
-              v-else
-              class="text-[10px] px-2 py-0.5 rounded-full font-medium"
-              style="background: var(--surface-raised); color: var(--text-tertiary);"
-            >not created</span>
-          </div>
-        </div>
-        <p class="text-[12px] text-meta">
-          Persistent facts Claude remembers across all sessions. Stored at <span class="font-mono">~/.claude/MEMORY.md</span>.
-        </p>
-
-        <div v-if="memoryMdLoading" class="flex justify-center py-6">
-          <UIcon name="i-lucide-loader-2" class="size-5 animate-spin text-meta" />
-        </div>
-
-        <template v-else>
-          <div v-if="!memoryMdEditing" class="text-center py-6 space-y-3">
-            <UIcon name="i-lucide-brain" class="size-8 text-meta mx-auto" />
-            <p class="text-[13px] text-label">No global MEMORY.md yet.</p>
-            <UButton label="Create MEMORY.md" icon="i-lucide-plus" size="sm" variant="soft" @click="createMemoryMd" />
-          </div>
-
-          <div v-else class="space-y-2">
-            <textarea
-              v-model="memoryMdDraft"
-              class="editor-textarea font-mono text-[12px]"
-              style="min-height: 240px; max-height: 480px; resize: vertical;"
-              spellcheck="false"
-              placeholder="# Memory&#10;&#10;- Fact one&#10;- Fact two"
-            />
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] text-meta font-mono">{{ memoryMdDraft.split('\n').length }} lines · {{ memoryMdDraft.length.toLocaleString() }} chars</span>
-              <div class="flex items-center gap-2">
-                <span v-if="memoryMdDirty" class="text-[11px] text-meta">Unsaved changes</span>
-                <UButton
-                  label="Save"
-                  icon="i-lucide-save"
-                  size="xs"
-                  :loading="memoryMdSaving"
-                  :disabled="!memoryMdDirty"
-                  @click="saveMemoryMd"
-                />
-              </div>
-            </div>
-          </div>
-        </template>
+      <div class="rounded-xl p-5 bg-card">
+        <MemoryManager />
       </div>
 
       <!-- Session Cleanup -->
@@ -1141,45 +928,6 @@ async function browseWorkingDir() {
         />
       </div>
     </div>
-
-    <!-- Add Hook Modal -->
-    <UModal v-model:open="showAddHookModal">
-      <template #content>
-        <div class="p-6 space-y-4 bg-overlay">
-          <h3 class="text-page-title">Add Automation</h3>
-          <p class="text-[12px] leading-relaxed text-label">
-            Run a shell command automatically when a specific event happens.
-          </p>
-
-          <div class="field-group">
-            <label class="field-label" data-required>When this happens</label>
-            <USelectDropdown v-model="newHookEvent" :options="hookEventOptions" placeholder="Select an event..." />
-          </div>
-
-          <div class="field-group">
-            <label class="field-label" data-required>Run this command</label>
-            <input v-model="newHookCommand" class="field-input" placeholder="e.g., bash -c 'echo done'" />
-            <span class="field-hint">The shell command that will be executed</span>
-          </div>
-
-          <div class="field-group">
-            <label class="field-label">Only for specific tools</label>
-            <input v-model="newHookMatcher" class="field-input" placeholder="Leave blank for all (optional)" />
-            <span class="field-hint">Only trigger when a specific tool is used (e.g., "Write" or "Bash")</span>
-          </div>
-
-          <div class="flex justify-end gap-2 pt-2">
-            <UButton label="Cancel" variant="ghost" color="neutral" size="sm" @click="showAddHookModal = false" />
-            <UButton
-              label="Add"
-              size="sm"
-              :disabled="!newHookEvent || !newHookCommand"
-              @click="addHook"
-            />
-          </div>
-        </div>
-      </template>
-    </UModal>
 
     <!-- Delete Confirmation Modal -->
     <UModal v-model:open="showRemoveConfirm">
