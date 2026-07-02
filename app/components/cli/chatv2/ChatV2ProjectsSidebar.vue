@@ -858,10 +858,8 @@ defineExpose({ refreshProject: loadProjectSessions })
                       <div class="text-[12px] font-medium truncate" style="color: var(--text-primary);">{{ session.summary || 'Session' }}</div>
                     </div>
                     <div class="relative flex items-center shrink-0">
-                      <div v-if="isSessionLive(session.lastActivity)" class="absolute inset-0 flex items-center justify-center group-hover/session:opacity-0 transition-opacity pointer-events-none">
-                        <div class="size-1.5 rounded-full animate-pulse" style="background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.5);" />
-                      </div>
-                      <div v-else class="flex items-center gap-1.5 group-hover/session:opacity-0 transition-opacity">
+                      <div class="flex items-center gap-1.5 group-hover/session:opacity-0 transition-opacity">
+                        <div v-if="isSessionLive(session.lastActivity)" class="size-1.5 rounded-full animate-pulse shrink-0" style="background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.5);" />
                         <span class="text-[10px] shrink-0" style="color: var(--text-disabled);">{{ formatRelativeTime(session.lastActivity) }}</span>
                       </div>
                       <div class="absolute right-0 flex items-center gap-0.5 opacity-0 group-hover/session:opacity-100 transition-opacity">
