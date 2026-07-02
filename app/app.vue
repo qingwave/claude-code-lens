@@ -82,7 +82,7 @@ function badgeFor(to: string) {
 </script>
 
 <template>
-  <UApp>
+  <UApp :toaster="{ duration: 1000 }">
     <div class="flex h-screen overflow-hidden" style="background: var(--surface-base);">
       <!-- Sidebar -->
       <aside

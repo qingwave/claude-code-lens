@@ -66,7 +66,7 @@ async function handleProjectRenamed(payload: { projectName: string; newName: str
     toast.add({
       title: 'Project renamed',
       color: 'success',
-      duration: 2000
+      duration: 1000
     })
   } catch (e: any) {
     console.error('[ChatV2] Failed to rename project:', e)
@@ -92,7 +92,7 @@ async function handleProjectDeleted(payload: { projectName: string }) {
     toast.add({
       title: 'Project history deleted',
       color: 'success',
-      duration: 2000
+      duration: 1000
     })
   } catch (e: any) {
     console.error('[ChatV2] Failed to delete project:', e)
@@ -546,7 +546,7 @@ async function saveClaudeMd() {
     claudeMdContent.value = claudeMdDraft.value
     claudeMdExists.value = true
     claudeMdEditing.value = true
-    toast.add({ title: 'CLAUDE.md saved', color: 'success', duration: 2000 })
+    toast.add({ title: 'CLAUDE.md saved', color: 'success', duration: 1000 })
   } catch (e: any) {
     toast.add({ title: 'Failed to save CLAUDE.md', description: e.message, color: 'error' })
   } finally {
@@ -585,7 +585,7 @@ async function saveMemoryMd() {
     })
     memoryMdContent.value = memoryMdDraft.value
     memoryMdExists.value = true
-    toast.add({ title: 'MEMORY.md saved', color: 'success', duration: 2000 })
+    toast.add({ title: 'MEMORY.md saved', color: 'success', duration: 1000 })
   } catch (e: any) {
     toast.add({ title: 'Failed to save MEMORY.md', description: e.message, color: 'error' })
   } finally {
@@ -622,7 +622,7 @@ async function saveOutputStyleSetting() {
       method: 'PUT',
       body: { path: projectPath, settings: configDirSettings.value }
     })
-    toast.add({ title: 'Output style saved', color: 'success', duration: 2000 })
+    toast.add({ title: 'Output style saved', color: 'success', duration: 1000 })
   } catch (e: any) {
     toast.add({ title: 'Failed to save settings', description: e.message, color: 'error' })
   } finally {
@@ -1499,7 +1499,7 @@ async function handleSessionRenamed(payload: { projectName: string; sessionId: s
     toast.add({
       title: 'Session renamed',
       color: 'success',
-      duration: 2000
+      duration: 1000
     })
   } catch (e: any) {
     console.error('[ChatV2] Failed to rename session:', e)
@@ -1525,7 +1525,7 @@ async function handleSessionDeleted(payload: { projectName: string; sessionId: s
     toast.add({
       title: 'Session deleted',
       color: 'success',
-      duration: 2000
+      duration: 1000
     })
   } catch (e: any) {
     console.error('[ChatV2] Failed to delete session:', e)
