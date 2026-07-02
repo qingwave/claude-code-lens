@@ -734,15 +734,16 @@ defineExpose({ refreshProject: loadProjectSessions })
           </div>
 
           <!-- Project cards -->
-          <div v-for="project in projects" :key="project.name" class="px-2 pt-1">
+          <div class="pt-1" />
+          <div v-for="project in projects" :key="project.name" class="px-2">
             <!-- Project header -->
             <div
-              class="flex items-center gap-2 px-2 py-2 rounded-lg group/proj cursor-pointer select-none hover-bg"
+              class="flex items-center gap-2 px-2 py-1 rounded-lg group/proj cursor-pointer select-none hover-bg"
               @click="getProjState(project.name).expanded = !getProjState(project.name).expanded"
             >
               <!-- Folder icon + chevron overlay -->
               <div class="relative shrink-0">
-                <UIcon name="i-lucide-folder" class="size-3.5" style="color: var(--accent);" />
+                <UIcon name="i-lucide-layers" class="size-3.5" style="color: var(--text-tertiary);" />
               </div>
 
               <template v-if="editingProjectName === project.name">
@@ -765,7 +766,7 @@ defineExpose({ refreshProject: loadProjectSessions })
 
               <template v-else>
                 <div class="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
-                  <span class="text-[12px] font-medium truncate" style="color: var(--text-primary);">{{ project.displayName }}</span>
+                  <span class="text-[11px] font-semibold truncate tracking-wide uppercase" style="color: var(--text-tertiary); letter-spacing: 0.04em;">{{ project.displayName }}</span>
                   <span class="text-[10px] shrink-0 tabular-nums" style="color: var(--text-disabled);">{{
                     getProjState(project.name).loading
                       ? project.sessionCount
