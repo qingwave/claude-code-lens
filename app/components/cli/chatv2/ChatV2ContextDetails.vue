@@ -3,6 +3,12 @@ import type { ContextMetrics } from '~/types'
 
 const props = defineProps<{
   metrics: ContextMetrics
+  maxTurns: number | null
+  maxTurnsOptions: { value: number | null; label: string; description: string }[]
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:maxTurns', value: number | null): void
 }>()
 
 const formatNumber = (num: number) => {
@@ -15,10 +21,10 @@ const contextPercentage = computed(() => {
 
 const getStatusColor = () => {
   const p = contextPercentage.value
-  if (p < 50) return '#22c55e' // Green
-  if (p < 75) return '#eab308' // Yellow
-  if (p < 90) return '#f97316' // Orange
-  return '#ef4444' // Red
+  if (p < 50) return '#22c55e'
+  if (p < 75) return '#eab308'
+  if (p < 90) return '#f97316'
+  return '#ef4444'
 }
 </script>
 
@@ -117,6 +123,32 @@ const getStatusColor = () => {
       <p class="text-[11px] leading-relaxed" style="color: var(--text-secondary);">
         The context window includes all messages, files, and tool results currently visible to Claude. When this fills up, Claude may forget older parts of the conversation. And might need to compact the context window.
       </p>
+    </div>
+    <!-- Advanced -->
+    <div class="space-y-3">
+      <h4 class="text-[11px] font-bold uppercase tracking-wider" style="color: var(--text-tertiary);">Advanced</h4>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <UIcon name="i-lucide-layers" class="size-3.5" style="color: var(--text-tertiary);" />
+          <span class="text-[12px]" style="color: var(--text-primary);">Max Turns</span>
+          <UTooltip text="Maximum number of agentic turns per request" :popper="{ placement: 'right' }">
+            <UIcon name="i-lucide-help-circle" class="size-3" style="color: var(--text-disabled);" />
+          </UTooltip>
+        </div>
+        <div class="flex items-center gap-1">
+          <button
+            v-for="option in maxTurnsOptions"
+            :key="String(option.value)"
+            class="min-w-[32px] h-7 px-2 rounded-lg text-[11px] font-mono font-medium transition-all"
+            :style="{
+              background: maxTurns === option.value ? 'var(--accent-muted)' : 'transparent',
+              color: maxTurns === option.value ? 'var(--accent)' : 'var(--text-tertiary)',
+              border: maxTurns === option.value ? '1px solid rgba(229,169,62,0.3)' : '1px solid transparent',
+            }"
+            @click="emit('update:maxTurns', option.value)"
+          >{{ option.label }}</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

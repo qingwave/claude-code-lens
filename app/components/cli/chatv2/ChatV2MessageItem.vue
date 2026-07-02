@@ -629,8 +629,7 @@ function informationalStyle(level?: string): Record<string, string> {
         <!-- Streaming cursor -->
         <span
           v-if="message.isStreaming"
-          class="inline-block w-0.5 h-4 ml-0.5 animate-pulse rounded-full"
-          style="background: var(--accent);"
+          class="streaming-cursor"
         />
 
         <!-- Copy button - appears on hover -->
@@ -1813,5 +1812,21 @@ function informationalStyle(level?: string): Record<string, string> {
   background: none !important;
   border: none !important;
   padding: 0 !important;
+}
+
+/* ── Streaming cursor ────────────────────────────────────────── */
+.streaming-cursor {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: cursor-breathe 1.2s ease-in-out infinite;
+}
+@keyframes cursor-breathe {
+  0%, 100% { transform: scale(0.6); opacity: 0.4; }
+  50%       { transform: scale(1);   opacity: 1; }
 }
 </style>

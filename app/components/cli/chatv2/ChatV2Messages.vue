@@ -225,27 +225,23 @@ function handleResend(content: string, images?: string[]) {
     <!-- Streaming indicator when streaming but no text yet -->
     <div
       v-if="isStreaming && messageGroups.length > 0 && !messageGroups[messageGroups.length - 1]?.messages.some(m => m.isStreaming)"
-      class="flex items-start gap-3"
+      class="flex items-start gap-2 md:gap-3"
     >
       <!-- Claude Avatar -->
       <div
-        class="size-8 rounded-full shrink-0 flex items-center justify-center"
+        class="size-7 md:size-8 rounded-full shrink-0 flex items-center justify-center"
         style="background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);"
       >
-        <svg class="size-4" viewBox="0 0 24 24" fill="white">
+        <svg class="size-3.5 md:size-4" viewBox="0 0 24 24" fill="white">
           <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/>
         </svg>
       </div>
 
-      <div class="flex-1">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="text-[13px] font-semibold" style="color: var(--text-primary);">Claude</span>
+      <div class="flex-1 min-w-0 pt-1">
+        <div class="flex items-center gap-2 mb-1.5 md:mb-2">
+          <span class="text-[12px] md:text-[13px] font-semibold" style="color: var(--text-primary);">Claude</span>
         </div>
-        <div class="flex items-center gap-2 text-[13px]" style="color: var(--text-secondary);">
-          <span class="thinking-dots">
-            <span>●</span><span>●</span><span>●</span>
-          </span>
-        </div>
+        <span class="streaming-cursor" />
       </div>
     </div>
   </div>
@@ -258,41 +254,22 @@ function handleResend(content: string, images?: string[]) {
   word-break: break-word;
 }
 
-/* Force content to respect container width */
 .max-w-full {
   max-width: 100%;
 }
 
-.thinking-dots {
-  display: inline-flex;
-  gap: 3px;
+.streaming-cursor {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: cursor-breathe 1.2s ease-in-out infinite;
 }
-
-.thinking-dots span {
-  animation: thinking-bounce 1.4s infinite ease-in-out both;
-  font-size: 8px;
-}
-
-.thinking-dots span:nth-child(1) {
-  animation-delay: -0.32s;
-}
-
-.thinking-dots span:nth-child(2) {
-  animation-delay: -0.16s;
-}
-
-.thinking-dots span:nth-child(3) {
-  animation-delay: 0s;
-}
-
-@keyframes thinking-bounce {
-  0%, 80%, 100% {
-    transform: scale(0.6);
-    opacity: 0.5;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 1;
-  }
+@keyframes cursor-breathe {
+  0%, 100% { transform: scale(0.6); opacity: 0.4; }
+  50%       { transform: scale(1);   opacity: 1; }
 }
 </style>

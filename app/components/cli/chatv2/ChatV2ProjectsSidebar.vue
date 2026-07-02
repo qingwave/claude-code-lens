@@ -997,34 +997,47 @@ defineExpose({ refreshProject: loadProjectSessions })
       <Transition name="modal">
         <div
           v-if="showDeleteModal"
-          class="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-[100]"
+          class="fixed inset-0 flex items-center justify-center z-[100] modal-backdrop"
           @click.self="showDeleteModal = false"
         >
-          <div class="w-[400px] p-6 rounded-2xl shadow-2xl border modal-content" style="background: var(--surface-overlay); border-color: var(--border-subtle); position: relative; z-index: 101;">
-            <div class="flex items-center gap-3 mb-4">
-              <div class="p-2 rounded-full bg-red-500/10">
-                <UIcon name="i-lucide-alert-triangle" class="size-5 text-red-500" />
+          <div class="modal-card modal-content" role="dialog" aria-modal="true">
+            <!-- Icon + Header -->
+            <div class="modal-header">
+              <div class="modal-icon-wrap">
+                <UIcon name="i-lucide-trash-2" class="size-[18px] text-red-400" />
               </div>
-              <h3 class="text-[16px] font-bold" style="color: var(--text-primary);">
-                Delete {{ deleteType === 'session' ? 'Session' : 'Project' }}
-              </h3>
+              <div class="flex-1 min-w-0">
+                <h3 class="modal-title">
+                  Delete {{ deleteType === 'session' ? 'Session' : 'Project' }}
+                </h3>
+                <p class="modal-subtitle">This action cannot be undone</p>
+              </div>
+              <button class="modal-close" @click="showDeleteModal = false" aria-label="Close">
+                <UIcon name="i-lucide-x" class="size-4" />
+              </button>
             </div>
-            <p class="text-[13px] leading-relaxed mb-6" style="color: var(--text-secondary);">
-              Are you sure you want to delete <span class="font-medium" style="color: var(--text-primary);">"{{ truncate(deleteMeta?.label || '', 60) }}"</span>?
-              <template v-if="deleteType === 'project'"> This will permanently delete all chat history for this folder.</template>
-              <template v-else> This action cannot be undone.</template>
-            </p>
-            <div class="flex items-center justify-end gap-3">
-              <button
-                class="px-4 py-2 rounded-xl text-[13px] font-semibold transition-all"
-                style="background: var(--surface-raised); color: var(--text-secondary); border: 1px solid var(--border-subtle);"
-                @click="showDeleteModal = false"
-              >Cancel</button>
-              <button
-                class="px-4 py-2 rounded-xl text-[13px] font-semibold transition-all"
-                style="background: var(--error); color: white;"
-                @click="confirmDelete"
-              >Delete</button>
+
+            <!-- Divider -->
+            <div class="modal-divider" />
+
+            <!-- Body -->
+            <div class="modal-body">
+              <p class="modal-description">
+                You're about to permanently delete
+                <span class="modal-target">"{{ truncate(deleteMeta?.label || '', 50) }}"</span>.
+                <template v-if="deleteType === 'project'">
+                  All chat history in this folder will be removed.
+                </template>
+              </p>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer">
+              <button class="btn-cancel" @click="showDeleteModal = false">Cancel</button>
+              <button class="btn-delete" @click="confirmDelete">
+                <UIcon name="i-lucide-trash-2" class="size-3.5" />
+                Delete
+              </button>
             </div>
           </div>
         </div>
@@ -1034,14 +1047,162 @@ defineExpose({ refreshProject: loadProjectSessions })
 </template>
 
 <style scoped>
-.modal-enter-active, .modal-leave-active { transition: opacity 0.2s ease; }
-.modal-enter-from, .modal-leave-to { opacity: 0; }
-.modal-enter-active .modal-content { animation: modal-in 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-.modal-leave-active .modal-content { animation: modal-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) reverse; }
-@keyframes modal-in {
-  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+/* ── Modal backdrop & transition ─────────────────────────────── */
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.modal-enter-active,
+.modal-leave-active { transition: opacity 0.22s ease; }
+.modal-enter-from,
+.modal-leave-to { opacity: 0; }
+.modal-enter-active .modal-content { animation: modal-spring 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.modal-leave-active .modal-content { animation: modal-spring 0.18s cubic-bezier(0.55, 0, 1, 0.45) reverse both; }
+@keyframes modal-spring {
+  from { opacity: 0; transform: scale(0.92) translateY(12px); }
   to   { opacity: 1; transform: scale(1)    translateY(0); }
 }
+
+/* ── Card shell ──────────────────────────────────────────────── */
+.modal-card {
+  width: 380px;
+  border-radius: 18px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-overlay);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.04) inset,
+    0 8px 32px rgba(0,0,0,0.35),
+    0 2px 8px rgba(0,0,0,0.2);
+  overflow: hidden;
+  position: relative;
+  z-index: 101;
+}
+
+/* ── Header ──────────────────────────────────────────────────── */
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 20px 20px 0;
+}
+.modal-icon-wrap {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+  margin: 0;
+}
+.modal-subtitle {
+  font-size: 11px;
+  color: var(--text-tertiary, var(--text-secondary));
+  margin: 2px 0 0;
+  letter-spacing: 0.01em;
+}
+.modal-close {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s;
+  margin-left: auto;
+}
+.modal-close:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+/* ── Divider ─────────────────────────────────────────────────── */
+.modal-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 16px 0 0;
+  opacity: 0.6;
+}
+
+/* ── Body ────────────────────────────────────────────────────── */
+.modal-body {
+  padding: 16px 20px;
+}
+.modal-description {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.modal-target {
+  font-weight: 500;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+/* ── Footer ──────────────────────────────────────────────────── */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 18px;
+  background: var(--surface-raised, rgba(0,0,0,0.08));
+  border-top: 1px solid var(--border-subtle);
+}
+.btn-cancel {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+.btn-cancel:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border-color: var(--border-default, var(--border-subtle));
+}
+.btn-delete {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fff;
+  background: #e53e3e;
+  border: 1px solid rgba(255,255,255,0.12);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(229, 62, 62, 0.4);
+}
+.btn-delete:hover {
+  background: #c53030;
+  box-shadow: 0 2px 8px rgba(229, 62, 62, 0.5);
+}
+.btn-delete:active {
+  transform: scale(0.97);
+}
+
+/* ── Dropdown transition ─────────────────────────────────────── */
 .dropdown-enter-active { transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
 .dropdown-leave-active { transition: opacity 0.1s ease, transform 0.1s ease; }
 .dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-4px) scale(0.97); }

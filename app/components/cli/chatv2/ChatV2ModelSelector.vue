@@ -43,16 +43,11 @@ onUnmounted(() => {
 <template>
   <div ref="dropdownRef" class="relative z-10 min-w-0">
     <button
-      class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors max-w-full hover:bg-[var(--surface-hover)]"
-      style="color: var(--text-secondary);"
+      class="ctrl-btn max-w-full"
       @click="isOpen = !isOpen"
     >
       <UIcon name="i-lucide-cpu" class="size-3.5 shrink-0" />
       <span class="truncate">{{ selectedOption?.label || 'Model' }}</span>
-      <UIcon
-        :name="isOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-        class="size-3 shrink-0 opacity-50"
-      />
     </button>
 
     <!-- Dropdown -->
@@ -99,6 +94,20 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.ctrl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  transition: color 0.15s;
+}
+.ctrl-btn:hover {
+  color: var(--text-primary);
+}
+
 .dropdown-enter-active,
 .dropdown-leave-active {
   transition: all 0.15s ease;

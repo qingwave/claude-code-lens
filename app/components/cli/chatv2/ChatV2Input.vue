@@ -12,6 +12,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
   (e: 'send', images: string[]): void
   (e: 'abort'): void
+  (e: 'abortAndSend', images: string[]): void
   (e: 'focus'): void
   (e: 'blur'): void
 }>()
@@ -102,6 +103,15 @@ const localValue = computed({
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const attachedImages = ref<{ url: string; file: File }[]>([])
 
+// Whether user has typed something while streaming (enables abort+send mode)
+const hasInputWhileStreaming = computed(() =>
+  props.isStreaming && (localValue.value.trim().length > 0 || attachedImages.value.length > 0)
+)
+
+// Char count display: only show when >= 8000
+const charCountVisible = computed(() => localValue.value.length >= 8000)
+const charCountColor = computed(() => localValue.value.length > 10000 ? '#ef4444' : 'var(--text-tertiary)')
+
 function handleFileSelect(event: Event) {
   const target = event.target as HTMLInputElement
   if (!target.files?.length) return
@@ -117,7 +127,7 @@ function handleFileSelect(event: Event) {
       reader.readAsDataURL(file)
     }
   })
-  target.value = '' // Reset input
+  target.value = ''
 }
 
 function removeImage(index: number) {
@@ -127,6 +137,12 @@ function removeImage(index: number) {
 function triggerSend() {
   const images = attachedImages.value.map(img => img.url)
   emit('send', images)
+  attachedImages.value = []
+}
+
+function triggerAbortAndSend() {
+  const images = attachedImages.value.map(img => img.url)
+  emit('abortAndSend', images)
   attachedImages.value = []
 }
 
@@ -175,7 +191,10 @@ function handleKeydown(e: KeyboardEvent) {
 
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
-    if (!props.disabled && (localValue.value.trim() || attachedImages.value.length > 0)) {
+    if (props.disabled) return
+    if (props.isStreaming && hasInputWhileStreaming.value) {
+      triggerAbortAndSend()
+    } else if (!props.isStreaming && (localValue.value.trim() || attachedImages.value.length > 0)) {
       triggerSend()
     }
   }
@@ -220,23 +239,9 @@ onMounted(async () => {
       @select="selectItem"
     />
 
-    <!-- Image Previews -->
-    <div v-if="attachedImages.length > 0" class="flex gap-2 mb-2 overflow-x-auto pb-1">
-      <div v-for="(img, idx) in attachedImages" :key="idx" class="relative group shrink-0">
-        <img :src="img.url" class="h-16 w-16 object-cover rounded-lg border" style="border-color: var(--border-subtle);" />
-        <button
-          class="absolute -top-1.5 -right-1.5 p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-          style="background: #ef4444; color: white; border: 1px solid var(--surface-base);"
-          @click="removeImage(idx)"
-        >
-          <UIcon name="i-lucide-x" class="size-3" />
-        </button>
-      </div>
-    </div>
-
-    <!-- Input container -->
+    <!-- Input container (images live inside now) -->
     <div
-      class="relative flex items-center gap-2 px-3 py-2.5 rounded-2xl transition-all duration-200"
+      class="relative rounded-2xl transition-all duration-200"
       :style="{
         background: 'var(--surface-raised)',
         border: isFocused
@@ -247,84 +252,131 @@ onMounted(async () => {
           : '0 2px 12px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.08)',
       }"
     >
-      <!-- Textarea -->
-      <textarea
-        ref="textareaRef"
-        v-model="localValue"
-        :disabled="disabled"
-        rows="1"
-        autocomplete="off"
-        class="flex-1 bg-transparent text-[13px] resize-none focus:outline-none leading-5"
-        :style="{
-          color: disabled ? 'var(--text-disabled)' : 'var(--text-primary)',
-        }"
-        :placeholder="placeholder || 'Send a message...'"
-        @keydown="handleKeydown"
-        @input="autoResize"
-        @focus="isFocused = true; emit('focus')"
-        @blur="isFocused = false; emit('blur')"
-      />
-
-      <!-- Action buttons -->
-      <div class="flex items-center gap-1 shrink-0">
-        <!-- Attach button -->
-        <button
-          class="size-7 rounded-full flex items-center justify-center transition-all duration-200 hover:bg-[var(--surface-hover)] shrink-0"
-          style="color: var(--text-secondary);"
-          title="Attach image"
-          @click="fileInputRef?.click()"
-        >
-          <UIcon name="i-lucide-paperclip" class="size-3.5" />
-        </button>
-        <input ref="fileInputRef" type="file" accept="image/*" multiple class="hidden" @change="handleFileSelect" />
-
-        <!-- Abort button when streaming -->
-        <button
-          v-if="isStreaming"
-          class="size-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80 shrink-0"
-          style="background: var(--text-primary); color: var(--surface-base);"
-          title="Stop generating"
-          @click="emit('abort')"
-        >
-          <UIcon name="i-lucide-square" class="size-3" />
-        </button>
-
-        <!-- Send button -->
-        <button
-          v-else
-          class="size-7 rounded-full flex items-center justify-center transition-all duration-200 shrink-0"
-          :style="{
-            background: disabled || (!localValue.trim() && attachedImages.length === 0) ? 'var(--border-default)' : 'var(--text-primary)',
-            color: disabled || (!localValue.trim() && attachedImages.length === 0) ? 'var(--text-disabled)' : 'var(--surface-base)',
-            cursor: disabled || (!localValue.trim() && attachedImages.length === 0) ? 'not-allowed' : 'pointer',
-          }"
-          :disabled="disabled || (!localValue.trim() && attachedImages.length === 0)"
-          title="Send message"
-          @click="triggerSend"
-        >
-          <UIcon name="i-lucide-arrow-up" class="size-3.5" />
-        </button>
+      <!-- Attached images (inside box, above textarea) -->
+      <div v-if="attachedImages.length > 0" class="flex gap-2 px-3 pt-2.5 pb-2 overflow-x-auto" style="border-bottom: 1px solid var(--border-subtle);">
+        <div v-for="(img, idx) in attachedImages" :key="idx" class="relative shrink-0">
+          <img :src="img.url" class="h-14 w-14 object-cover rounded-lg border" style="border-color: var(--border-subtle);" />
+          <button
+            class="absolute -top-1.5 -right-1.5 size-4 rounded-full flex items-center justify-center"
+            style="background: #ef4444; color: white; border: 1.5px solid var(--surface-raised);"
+            @click="removeImage(idx)"
+          >
+            <UIcon name="i-lucide-x" class="size-2.5" />
+          </button>
+        </div>
       </div>
+
+      <!-- Textarea row -->
+      <div class="flex items-center gap-2 px-3 pt-2.5 pb-1.5">
+        <!-- Char count badge (absolute, shown when >= 8000) -->
+        <Transition name="char-count">
+          <span
+            v-if="charCountVisible"
+            class="absolute top-2 right-12 text-[10px] font-mono pointer-events-none select-none"
+            :style="{ color: charCountColor }"
+          >{{ localValue.length.toLocaleString() }}</span>
+        </Transition>
+
+        <!-- Textarea -->
+        <textarea
+          ref="textareaRef"
+          v-model="localValue"
+          :disabled="disabled"
+          rows="1"
+          autocomplete="off"
+          class="flex-1 bg-transparent text-[13px] resize-none focus:outline-none leading-5"
+          :style="{
+            color: disabled ? 'var(--text-disabled)' : 'var(--text-primary)',
+          }"
+          :placeholder="isStreaming ? '' : (placeholder || 'Message Claude...')"
+          @keydown="handleKeydown"
+          @input="autoResize"
+          @focus="isFocused = true; emit('focus')"
+          @blur="isFocused = false; emit('blur')"
+        />
+
+        <!-- Action buttons -->
+        <div class="flex items-center gap-1 shrink-0">
+          <!-- Attach button (hidden while streaming to reduce noise) -->
+          <button
+            v-if="!isStreaming"
+            class="size-7 rounded-full flex items-center justify-center transition-all duration-200 hover:bg-[var(--surface-hover)] shrink-0"
+            style="color: var(--text-secondary);"
+            title="Attach image"
+            @click="fileInputRef?.click()"
+          >
+            <UIcon name="i-lucide-paperclip" class="size-3.5" />
+          </button>
+          <input ref="fileInputRef" type="file" accept="image/*" multiple class="hidden" @change="handleFileSelect" />
+
+          <!-- Streaming: single button — square when no input, arrow when has input -->
+          <button
+            v-if="isStreaming"
+            class="size-7 rounded-full flex items-center justify-center transition-all duration-200 hover:opacity-80 shrink-0"
+            style="background: var(--text-primary); color: var(--surface-base);"
+            :title="hasInputWhileStreaming ? 'Stop and send' : 'Stop generating'"
+            @click="hasInputWhileStreaming ? triggerAbortAndSend() : emit('abort')"
+          >
+            <Transition name="btn-icon" mode="out-in">
+              <UIcon v-if="hasInputWhileStreaming" key="send" name="i-lucide-arrow-up" class="size-3.5" />
+              <UIcon v-else key="stop" name="i-lucide-square" class="size-3" />
+            </Transition>
+          </button>
+
+          <!-- Idle: send button -->
+          <button
+            v-else
+            class="size-7 rounded-full flex items-center justify-center transition-all duration-200 shrink-0"
+            :class="{ 'send-btn-active': localValue.trim() || attachedImages.length > 0 }"
+            :style="{
+              background: (!localValue.trim() && attachedImages.length === 0) ? 'var(--border-default)' : undefined,
+              color: (!localValue.trim() && attachedImages.length === 0) ? 'var(--text-disabled)' : undefined,
+              cursor: (!localValue.trim() && attachedImages.length === 0) ? 'not-allowed' : 'pointer',
+            }"
+            :disabled="!localValue.trim() && attachedImages.length === 0"
+            title="Send message"
+            @click="triggerSend"
+          >
+            <UIcon name="i-lucide-arrow-up" class="size-3.5" />
+          </button>
+        </div>
+      </div>
+
     </div>
 
-    <!-- Controls bar (centered) -->
-    <div class="flex items-center justify-center mt-1.5 px-1 gap-1 flex-wrap">
+    <!-- Controls bar -->
+    <div class="flex items-center justify-center mt-1.5 px-1 gap-0.5 flex-wrap">
       <slot name="controls" />
-
-      <span
-        v-if="localValue.length > 0"
-        class="text-[10px] font-mono px-1"
-        :style="{ color: localValue.length > 10000 ? '#ef4444' : 'var(--text-tertiary)' }"
-      >{{ localValue.length.toLocaleString() }}</span>
-
-      <span
-        v-if="isStreaming"
-        class="text-[10px] flex items-center gap-1"
-        style="color: var(--accent);"
-      >
-        <UIcon name="i-lucide-loader-2" class="size-3 animate-spin" />
-        Generating...
-      </span>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* ── Send button — active state ──────────────────────────────── */
+.send-btn-active {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--text-primary);
+  color: var(--surface-base);
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  flex-shrink: 0;
+  border: none;
+}
+.send-btn-active:hover { opacity: 0.85; }
+.send-btn-active:active { transform: scale(0.93); }
+
+/* ── Char count fade ─────────────────────────────────────────── */
+.char-count-enter-active, .char-count-leave-active { transition: opacity 0.2s; }
+.char-count-enter-from, .char-count-leave-to { opacity: 0; }
+
+/* ── Button icon swap ────────────────────────────────────────── */
+.btn-icon-enter-active, .btn-icon-leave-active { transition: opacity 0.12s ease, transform 0.12s ease; }
+.btn-icon-enter-from { opacity: 0; transform: scale(0.6); }
+.btn-icon-leave-to   { opacity: 0; transform: scale(0.6); }
+
+</style>

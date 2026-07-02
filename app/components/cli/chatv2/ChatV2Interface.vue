@@ -242,7 +242,6 @@ onMounted(async () => {
   updateWidth()
   window.addEventListener('resize', updateWidth)
   document.addEventListener('click', handleEffortClickOutside)
-  document.addEventListener('click', handleMaxTurnsClickOutside)
   
   // Fetch sessions on mount
   await fetchSessions()
@@ -257,7 +256,6 @@ onUnmounted(() => {
   document.removeEventListener('mousemove', onPanelTreeDragMove)
   document.removeEventListener('mouseup', onPanelTreeDragEnd)
   document.removeEventListener('click', handleEffortClickOutside)
-  document.removeEventListener('click', handleMaxTurnsClickOutside)
 })
 
 watch(isMobileScreen, (isMobile) => {
@@ -417,8 +415,6 @@ const effortMenuRef = ref<HTMLElement | null>(null)
 
 // Max turns selector
 const maxTurns = ref<number | null>(10)
-const showMaxTurnsMenu = ref(false)
-const maxTurnsMenuRef = ref<HTMLElement | null>(null)
 const maxTurnsOptions: { value: number | null; label: string; description: string }[] = [
   { value: null,  label: '∞',   description: 'No limit' },
   { value: 5,    label: '5',   description: 'Quick tasks' },
@@ -426,13 +422,6 @@ const maxTurnsOptions: { value: number | null; label: string; description: strin
   { value: 20,   label: '20',  description: 'Extended tasks' },
   { value: 50,   label: '50',  description: 'Long running' },
 ]
-const currentMaxTurns = computed(() => maxTurnsOptions.find(o => o.value === maxTurns.value) ?? maxTurnsOptions[0]!)
-
-function handleMaxTurnsClickOutside(e: MouseEvent) {
-  if (maxTurnsMenuRef.value && !maxTurnsMenuRef.value.contains(e.target as Node)) {
-    showMaxTurnsMenu.value = false
-  }
-}
 
 const contextUsageColorHex = computed(() => {
   const c = contextMonitor.contextUsageColor.value
@@ -1471,6 +1460,17 @@ async function handleSendMessage(images: string[] = []) {
   inputText.value = ''
 }
 
+// Abort current stream then immediately send the queued input
+async function handleAbortAndSend(images: string[] = []) {
+  const text = inputText.value
+  inputText.value = ''
+  abort()
+  await nextTick()
+  if (text.trim() || images.length > 0) {
+    sendRegularMessage(text, images)
+  }
+}
+
 // Handle permission response
 async function handlePermissionResponse(permissionId: string, decision: 'allow' | 'deny', remember = false, updatedInput?: any) {
   respondToPermission(permissionId, decision, remember, updatedInput)
@@ -1935,10 +1935,6 @@ function handleClosePreview() {
             </UTooltip>
           </div>
 
-          <!-- Session ID (only in live mode) -->
-          <span v-if="viewMode === 'live' && currentSessionId" class="hidden md:inline text-[10px] font-mono opacity-50" style="color: var(--text-tertiary);">
-            {{ currentSessionId.slice(0, 8) }}
-          </span>
         </div>
         </div>
       </div>
@@ -2129,11 +2125,12 @@ function handleClosePreview() {
         <!-- Chat Input -->
         <ChatV2Input
           v-model="inputText"
-          :disabled="isStreaming || isCreatingSession"
+          :disabled="isCreatingSession"
           :is-streaming="isStreaming"
           :placeholder="viewMode === 'history' && !isContinuingHistory ? 'Continue this conversation...' : 'Message Claude...'"
           @send="handleSendMessage"
             @abort="abort()"
+            @abort-and-send="handleAbortAndSend"
             @focus="isInputFocused = true"
             @blur="isInputFocused = false"
           >
@@ -2155,8 +2152,7 @@ function handleClosePreview() {
             <!-- Effort Level Selector -->
             <div ref="effortMenuRef" class="relative">
               <button
-                class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors hover:bg-[var(--surface-hover)]"
-                style="color: var(--text-secondary);"
+                class="ctrl-btn"
                 :title="`Effort: ${currentEffort.label}`"
                 @click="showEffortMenu = !showEffortMenu"
               >
@@ -2202,58 +2198,9 @@ function handleClosePreview() {
               </Transition>
             </div>
 
-            <!-- Max Turns Selector -->
-            <div ref="maxTurnsMenuRef" class="relative">
-              <button
-                class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors hover:bg-[var(--surface-hover)]"
-                style="color: var(--text-secondary);"
-                :title="`Max turns: ${currentMaxTurns.description}`"
-                @click="showMaxTurnsMenu = !showMaxTurnsMenu"
-              >
-                <UIcon name="i-lucide-repeat" class="size-3.5 shrink-0" />
-                <span>{{ currentMaxTurns.label }}</span>
-              </button>
-
-              <Transition
-                enter-active-class="transition duration-150 ease-out"
-                enter-from-class="opacity-0 translate-y-2 scale-95"
-                enter-to-class="opacity-100 translate-y-0 scale-100"
-                leave-active-class="transition duration-100 ease-in"
-                leave-from-class="opacity-100 translate-y-0 scale-100"
-                leave-to-class="opacity-0 translate-y-2 scale-95"
-              >
-                <div
-                  v-if="showMaxTurnsMenu"
-                  class="absolute bottom-full right-0 mb-1 w-44 rounded-xl border shadow-xl backdrop-blur-md overflow-hidden z-[200]"
-                  style="background: var(--surface-overlay); border-color: var(--border-subtle);"
-                >
-                  <div class="px-3 py-2 border-b" style="border-color: var(--border-subtle);">
-                    <p class="text-[11px] font-medium" style="color: var(--text-tertiary);">Max Turns</p>
-                  </div>
-                  <div class="p-1.5">
-                    <button
-                      v-for="option in maxTurnsOptions"
-                      :key="String(option.value)"
-                      class="w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg transition-all text-left text-[13px]"
-                      :style="{
-                        background: maxTurns === option.value ? 'var(--surface-hover)' : 'transparent',
-                        color: 'var(--text-primary)',
-                      }"
-                      @click="maxTurns = option.value; showMaxTurnsMenu = false"
-                    >
-                      <span class="font-mono font-medium w-6 text-center shrink-0" style="color: var(--accent);">{{ option.label }}</span>
-                      <span class="flex-1 text-xs" style="color: var(--text-tertiary);">{{ option.description }}</span>
-                      <UIcon v-if="maxTurns === option.value" name="i-lucide-check" class="size-3.5 shrink-0" style="color: var(--accent);" />
-                    </button>
-                  </div>
-                </div>
-              </Transition>
-            </div>
-
             <!-- Context Usage -->
             <button
-              class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors hover:bg-[var(--surface-hover)]"
-              style="color: var(--text-secondary);"
+              class="ctrl-btn"
               :title="`Context: ${contextMonitor.contextUsageText.value} — click for details`"
               @click="openRightTab('context')"
             >
@@ -2383,7 +2330,13 @@ function handleClosePreview() {
 
           <!-- Tab Content -->
           <div class="flex-1 overflow-hidden flex flex-col">
-            <ChatV2ContextDetails v-if="activeRightTab === 'context'" :metrics="contextMonitor.metrics.value" />
+            <ChatV2ContextDetails
+              v-if="activeRightTab === 'context'"
+              :metrics="contextMonitor.metrics.value"
+              :max-turns="maxTurns"
+              :max-turns-options="maxTurnsOptions"
+              @update:max-turns="maxTurns = $event"
+            />
 
             <!-- Explorer: left file tree + right file content -->
             <div v-else-if="activeRightTab === 'explorer'" class="flex-1 flex min-h-0 overflow-hidden">
@@ -2479,6 +2432,20 @@ function handleClosePreview() {
 </template>
 
 <style scoped>
+.ctrl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  transition: color 0.15s;
+}
+.ctrl-btn:hover {
+  color: var(--text-primary);
+}
+
 :global(body.dragging-context-sidebar) {
   cursor: col-resize !important;
   user-select: none !important;
