@@ -223,10 +223,17 @@ export const claudeProvider: ProviderAdapter = {
 
     try {
       // Prepare SDK options
+      const resolvedPermissionMode = mapPermissionMode(options.permissionMode)
+      const autoAllowedTools = resolvedPermissionMode === 'bypassPermissions'
+        ? ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash']
+        : resolvedPermissionMode === 'acceptEdits'
+          ? ['Read', 'Write', 'Edit', 'Glob', 'Grep']
+          : ['Read', 'Glob', 'Grep'] // default/plan: read-only only
+
       sdkOptions = {
         cwd: options.workingDir || process.cwd(),
-        permissionMode: mapPermissionMode(options.permissionMode),
-        allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'],
+        permissionMode: resolvedPermissionMode,
+        allowedTools: autoAllowedTools,
         // null = unlimited (user explicitly chose ∞), undefined = not set (default to 10)
         maxTurns: options.maxTurns === null ? undefined : (options.maxTurns ?? 10),
         includePartialMessages: true,
@@ -295,8 +302,7 @@ export const claudeProvider: ProviderAdapter = {
       }
 
       // Permission handling
-      const permissionMode = sdkOptions.permissionMode
-      if (permissionMode !== 'bypassPermissions') {
+      if (resolvedPermissionMode !== 'bypassPermissions') {
         sdkOptions.canUseTool = async (toolName: string, input: any) => {
           const isAllowed = (sdkOptions.allowedTools || []).some((t: string) => t === toolName)
           if (isAllowed) {
