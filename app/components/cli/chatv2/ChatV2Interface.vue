@@ -376,11 +376,10 @@ const currentProjectDisplayName = ref<string>('')
 
 // Permission mode selector
 const permissionModeOptions: { value: PermissionMode; label: string; description: string }[] = [
-  { value: 'default', label: 'Ask', description: 'Ask for permission on each action' },
-  { value: 'skip', label: 'Skip', description: 'Allow all actions for this session' },
-  { value: 'acceptEdits', label: 'Accept Edits', description: 'Auto-approve file edits' },
-  { value: 'plan', label: 'Plan Mode', description: 'Plan only, no execution' },
-  { value: 'bypassPermissions', label: 'Dangerous', description: 'Full bypass - dangerous mode' },
+  { value: 'default',            label: 'Ask',          description: 'Confirm each tool use before running' },
+  { value: 'acceptEdits',        label: 'Auto Edit',    description: 'File edits auto-approved, others ask' },
+  { value: 'bypassPermissions',  label: 'Auto',         description: 'All actions run without confirmation' },
+  { value: 'plan',               label: 'Plan',         description: 'Plan only, no tools executed' },
 ]
 
 const selectedPermissionMode = ref<PermissionMode>('default')
@@ -2144,7 +2143,7 @@ function handleClosePreview() {
 
             <!-- Permission Mode Selector -->
             <ChatV2PermissionModeSelector
-              v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && currentSessionId)"
+              v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
               v-model="selectedPermissionMode"
               :options="permissionModeOptions"
             />
