@@ -1498,14 +1498,6 @@ async function handlePermissionResponse(permissionId: string, decision: 'allow' 
   respondToPermission(permissionId, decision, remember, updatedInput)
 }
 
-// Scroll the inline permission card into view (triggered by header banner)
-function focusPermission(permissionId: string) {
-  const el = document.getElementById(`perm-${permissionId}`)
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }
-}
-
 // Handle interactive prompt response
 function handlePromptResponse(promptId: string, value: string) {
   respondToPrompt(promptId, value)
@@ -1969,13 +1961,6 @@ function handleClosePreview() {
         </div>
       </div>
 
-      <!-- Permission Banner -->
-      <ChatV2PermissionBanner
-        v-if="hasPendingPermissions"
-        :permissions="permissions.getAllPending()"
-        @focus="focusPermission"
-      />
-
       <!-- Messages Area -->
       <div class="flex-1 relative min-h-0 min-w-0 overflow-x-hidden">
         <!-- Loading spinners live outside the opacity-controlled container so they're always visible -->
@@ -2155,6 +2140,12 @@ function handleClosePreview() {
             style="background: linear-gradient(to top, var(--surface-base), var(--surface-base) 60%, transparent);"
           >
             <div class="max-w-[800px] mx-auto pl-[52px] md:pl-[60px] pr-8">
+              <!-- Pending permission floats above input -->
+              <ChatV2PendingPermission
+                v-if="hasPendingPermissions"
+                :permissions="permissions.getAllPending()"
+                @respond="handlePermissionResponse"
+              />
               <!-- Chat Input -->
               <ChatV2Input
                 v-model="inputText"

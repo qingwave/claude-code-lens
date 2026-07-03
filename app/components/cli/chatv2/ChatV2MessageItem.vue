@@ -146,92 +146,11 @@ const askUserQuestions = computed<AskUserQuestionItem[] | null>(() => {
   return [{ question: JSON.stringify(input) }]
 })
 
-// Track selected answers for AskUserQuestion (per question index -> selected option labels)
-const selectedAnswers = ref<Map<number, Set<string>>>(new Map())
-
-function toggleAnswer(questionIndex: number, optionLabel: string, multiSelect: boolean) {
-  const current = selectedAnswers.value.get(questionIndex) ?? new Set<string>()
-  if (multiSelect) {
-    if (current.has(optionLabel)) {
-      current.delete(optionLabel)
-    } else {
-      current.add(optionLabel)
-    }
-  } else {
-    current.clear()
-    current.add(optionLabel)
-  }
-  selectedAnswers.value.set(questionIndex, current)
-  // Force reactivity
-  selectedAnswers.value = new Map(selectedAnswers.value)
-
-  // For single-select with only one question, auto-submit on selection
-  if (!multiSelect && askUserQuestions.value && askUserQuestions.value.length === 1) {
-    handlePermissionAllow(false)
-  }
-}
-
-function isAnswerSelected(questionIndex: number, optionLabel: string): boolean {
-  return selectedAnswers.value.get(questionIndex)?.has(optionLabel) ?? false
-}
-
 // Check if a specific option label is part of the submittedAnswer string
 function isOptionSubmitted(optionLabel: string): boolean {
   if (!submittedAnswer.value) return false
   const labels = submittedAnswer.value.split(',').map(s => s.trim())
   return labels.includes(optionLabel)
-}
-
-// Check if any answer has been selected
-const hasSelectedAnswer = computed(() => {
-  if (!askUserQuestions.value) return false
-  for (let i = 0; i < askUserQuestions.value.length; i++) {
-    const selected = selectedAnswers.value.get(i)
-    if (selected && selected.size > 0) return true
-  }
-  return false
-})
-
-// Build updatedInput with answers for AskUserQuestion
-// The SDK expects `answers` as { [questionText]: "selected label" } (comma-separated for multi-select)
-function buildUpdatedInput(): any {
-  if (!isAskUserQuestion.value || !askUserQuestions.value) return undefined
-  const questions = askUserQuestions.value
-  const answers: Record<string, string> = {}
-  for (let i = 0; i < questions.length; i++) {
-    const selected = selectedAnswers.value.get(i)
-    if (selected && selected.size > 0) {
-      const q = questions[i]
-      if (q) answers[q.question] = Array.from(selected).join(', ')
-    }
-  }
-
-  // Handle both object and string input
-  const baseInput = typeof props.message.toolInput === 'object'
-    ? JSON.parse(JSON.stringify(props.message.toolInput))
-    : { question: props.message.toolInput }
-
-  return {
-    ...baseInput,
-    answers,
-  }
-}
-
-// Handle permission response
-// Decision state is persisted by useChatV2Handler.respondToPermission -> sessionStore.updateMessageDecision
-function handlePermissionAllow(remember = false) {
-  const permId = props.message.requestId || props.message.id
-  if (permId) {
-    const updatedInput = buildUpdatedInput()
-    emit('permissionRespond', permId, 'allow', remember, updatedInput)
-  }
-}
-
-function handlePermissionDeny() {
-  const permId = props.message.requestId || props.message.id
-  if (permId) {
-    emit('permissionRespond', permId, 'deny', false)
-  }
 }
 
 // Get tool icon based on tool name
@@ -1208,118 +1127,18 @@ function informationalStyle(level?: string): Record<string, string> {
         </div>
       </div>
 
-      <!-- Pending: show permission request -->
+      <!-- Pending: compact placeholder — full card shown in input dock -->
       <div
         v-else
-        class="px-3 py-2 md:px-4 md:py-3 rounded-xl border-2"
-        style="background: rgba(229, 169, 62, 0.05); border-color: var(--accent);"
+        class="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+        style="background: rgba(229,169,62,0.06); border: 1px solid rgba(229,169,62,0.2);"
       >
-        <div class="flex items-center gap-2 mb-2">
-          <UIcon name="i-lucide-shield-question" class="size-3.5 md:size-4" style="color: var(--accent);" />
-          <span class="text-[11px] md:text-[12px] font-semibold" style="color: var(--text-primary);">
-            Action Required
-          </span>
-        </div>
-
-        <!-- AskUserQuestion: render as formatted text -->
-        <template v-if="isAskUserQuestion && askUserQuestions">
-          <div v-for="(q, qi) in askUserQuestions" :key="qi" class="mb-3">
-            <p v-if="q.header" class="text-[11px] md:text-[12px] font-semibold mb-1 whitespace-normal" style="color: var(--text-primary);">
-              {{ q.header }}
-            </p>
-            <p class="text-[11px] md:text-[12px] mb-2 whitespace-normal" style="color: var(--text-secondary);">
-              {{ q.question }}
-            </p>
-            <div v-if="q.options && q.options.length" class="space-y-1.5">
-              <button
-                v-for="(opt, oi) in q.options"
-                :key="oi"
-                class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg w-full text-left transition-all"
-                :style="{
-                  background: isAnswerSelected(qi, opt.label) ? 'rgba(229, 169, 62, 0.15)' : 'var(--surface-raised)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: isAnswerSelected(qi, opt.label) ? 'var(--accent)' : 'transparent',
-                }"
-                @click="toggleAnswer(qi, opt.label, !!q.multiSelect)"
-              >
-                <UIcon
-                  :name="isAnswerSelected(qi, opt.label)
-                    ? (q.multiSelect ? 'i-lucide-check-square' : 'i-lucide-circle-dot')
-                    : (q.multiSelect ? 'i-lucide-square' : 'i-lucide-circle')"
-                  class="size-3.5 mt-0.5 shrink-0"
-                  :style="{ color: isAnswerSelected(qi, opt.label) ? 'var(--accent)' : 'var(--text-tertiary)' }"
-                />
-                <div class="min-w-0 flex-1">
-                  <span class="text-[11px] md:text-[12px] font-medium whitespace-normal" style="color: var(--text-primary);">
-                    {{ opt.label }}
-                  </span>
-                  <p v-if="opt.description" class="text-[10px] md:text-[11px] mt-0.5 whitespace-normal" style="color: var(--text-tertiary);">
-                    {{ opt.description }}
-                  </p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </template>
-
-        <!-- Other tools: show tool name and raw input -->
-        <template v-else>
-          <p class="text-[11px] md:text-[12px] mb-3 whitespace-normal" style="color: var(--text-secondary);">
-            <span class="font-mono font-semibold" style="color: var(--text-primary);">{{ message.toolName || 'Tool' }}</span> wants to perform an action:
-          </p>
-
-          <pre
-            v-if="message.toolInput"
-            class="text-[10px] md:text-[11px] p-2 rounded-lg mb-3 overflow-auto max-h-24 font-mono"
-            style="background: var(--surface-raised); color: var(--text-tertiary);"
-          >{{ typeof message.toolInput === 'string' ? message.toolInput : JSON.stringify(message.toolInput, null, 2) }}</pre>
-        </template>
-
-        <!-- AskUserQuestion: Submit/Deny for multi-select, just Deny for single-select (auto-submits on click) -->
-        <div v-if="isAskUserQuestion && askUserQuestions" class="flex flex-wrap items-center gap-2">
-          <!-- Multi-select or multi-question: show explicit Submit -->
-          <button
-            v-if="askUserQuestions.some(q => q.multiSelect) || askUserQuestions.length > 1"
-            class="px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg text-[11px] md:text-[12px] font-medium transition-all"
-            :style="{
-              background: hasSelectedAnswer ? 'var(--accent)' : 'var(--surface-raised)',
-              color: hasSelectedAnswer ? 'white' : 'var(--text-tertiary)',
-              cursor: hasSelectedAnswer ? 'pointer' : 'not-allowed',
-              opacity: hasSelectedAnswer ? '1' : '0.6',
-            }"
-            :disabled="!hasSelectedAnswer"
-            @click="handlePermissionAllow(false)"
-          >
-            Submit
-          </button>
-          <button
-            class="px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg text-[11px] md:text-[12px] font-medium transition-all hover:opacity-90"
-            style="background: rgba(239, 68, 68, 0.1); color: #ef4444;"
-            @click="handlePermissionDeny"
-          >
-            Cancel
-          </button>
-        </div>
-
-        <!-- Regular tools: Submit / Cancel -->
-        <div v-else class="flex flex-wrap items-center gap-2">
-          <button
-            class="px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg text-[11px] md:text-[12px] font-medium transition-all hover:opacity-90"
-            style="background: var(--accent); color: white;"
-            @click="handlePermissionAllow(false)"
-          >
-            Submit
-          </button>
-          <button
-            class="px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg text-[11px] md:text-[12px] font-medium transition-all hover:opacity-90"
-            style="background: rgba(239, 68, 68, 0.1); color: #ef4444;"
-            @click="handlePermissionDeny"
-          >
-            Cancel
-          </button>
-        </div>
-        </div>
+        <UIcon name="i-lucide-shield-question" class="size-3.5 shrink-0 animate-pulse" style="color: var(--accent);" />
+        <span class="text-[12px]" style="color: var(--text-secondary);">
+          <span class="font-medium" style="color: var(--text-primary);">{{ message.toolName || 'Tool' }}</span>
+          {{ isAskUserQuestion ? ' is asking a question' : ' wants to perform an action' }} — respond below
+        </span>
+      </div>
       </div>
     </template>
 
