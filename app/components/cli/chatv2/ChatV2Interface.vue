@@ -1900,7 +1900,7 @@ function handleClosePreview() {
                 style="background: var(--surface-raised); color: var(--text-secondary);"
                 :title="localWorkingDir || selectedProjectPath || ''"
               >
-                <UIcon :name="currentProjectDisplayName ? 'i-lucide-folder-root' : 'i-lucide-folder'" class="size-3 shrink-0" />
+                <UIcon name="i-lucide-layers" class="size-3 shrink-0" />
                 <span class="truncate">{{ currentProjectDisplayName || localWorkingDir?.split('/').filter(Boolean).pop() || localWorkingDir }}</span>
               </NuxtLink>
             </div>

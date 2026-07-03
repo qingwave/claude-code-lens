@@ -100,8 +100,12 @@ async function loadProjectSessions(projectName: string, limit = 20, offset = 0) 
       state.sessions = [...state.sessions, ...res.sessions]
     }
     state.hasMore = res.hasMore
+    if (offset === 0 && res.sessions.length === 0) {
+      state.expanded = false
+    }
   } catch {
     state.sessions = []
+    state.expanded = false
   } finally {
     state.loading = false
   }
