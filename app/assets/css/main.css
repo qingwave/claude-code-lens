@@ -38,6 +38,7 @@
   --surface-overlay: #ffffff;
   --surface-hover: #edeef2;
   --surface-inset: #ecedf1;
+  --surface-glass: rgba(255, 255, 255, 0.45);
 
   /* Borders */
   --border-subtle: rgba(0, 0, 0, 0.06);
@@ -114,6 +115,7 @@
   --surface-overlay: #1a1a1f;
   --surface-hover: #222228;
   --surface-inset: #0e0e11;
+  --surface-glass: rgba(19, 19, 22, 0.45);
 
   /* Borders */
   --border-subtle: rgba(255, 255, 255, 0.05);

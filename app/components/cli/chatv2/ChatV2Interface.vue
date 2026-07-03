@@ -2024,7 +2024,7 @@ function handleClosePreview() {
 
         <div
           ref="messagesContainerRef"
-          class="h-full overflow-y-auto overflow-x-hidden"
+          class="h-full overflow-y-auto overflow-x-hidden pb-[220px]"
           :class="(viewMode === 'live' && !isLiveChat && !currentSessionId) ? 'flex items-center justify-center' : ''"
           :style="{
             background: 'var(--surface-base)',
@@ -2135,104 +2135,109 @@ function handleClosePreview() {
           :messages="filteredMessages"
           :scroll-container="messagesContainerRef"
         />
-      </div><!-- end Messages Area -->
 
-      <!-- Input dock -->
-      <div
-        v-if="(isLiveChat || currentSessionId || (viewMode === 'history' && urlSessionId)) && !isLoadingHistoryWithDelay && !isCreatingSession"
-        class="shrink-0"
-        style="background: var(--surface-base);"
-      >
-        <div class="max-w-[1200px] mx-auto pl-[52px] md:pl-[60px] pr-8">
-        <!-- Chat Input -->
-        <ChatV2Input
-          v-model="inputText"
-          :disabled="isCreatingSession"
-          :is-streaming="isStreaming"
-          :placeholder="viewMode === 'history' && !isContinuingHistory ? 'Continue this conversation...' : 'Message Claude...'"
-          @send="handleSendMessage"
-            @abort="abort()"
-            @abort-and-send="handleAbortAndSend"
-            @focus="isInputFocused = true"
-            @blur="isInputFocused = false"
+        <!-- Input dock — floats over messages via absolute positioning so backdrop-blur works -->
+        <div
+          v-if="(isLiveChat || currentSessionId || (viewMode === 'history' && urlSessionId)) && !isLoadingHistoryWithDelay && !isCreatingSession"
+          class="absolute bottom-0 left-0 right-0 z-20 pointer-events-none"
+        >
+          <!-- Gradient fades message list into dock; controls area sits on solid bg -->
+          <div
+            class="pointer-events-auto"
+            style="background: linear-gradient(to top, var(--surface-base), var(--surface-base) 60%, transparent);"
           >
-            <template #controls>
-            <!-- Model Selector -->
-            <ChatV2ModelSelector
-              v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
-              v-model="selectedModel"
-              :options="MODEL_OPTIONS_CHAT"
-            />
-
-            <!-- Permission Mode Selector -->
-            <ChatV2PermissionModeSelector
-              v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
-              v-model="selectedPermissionMode"
-              :options="permissionModeOptions"
-            />
-
-            <!-- Effort Level Selector -->
-            <div ref="effortMenuRef" class="relative">
-              <button
-                class="ctrl-btn"
-                :title="`Effort: ${currentEffort.label}`"
-                @click="showEffortMenu = !showEffortMenu"
+            <div class="max-w-[1200px] mx-auto pl-[52px] md:pl-[60px] pr-8">
+              <!-- Chat Input -->
+              <ChatV2Input
+                v-model="inputText"
+                :disabled="isCreatingSession"
+                :is-streaming="isStreaming"
+                :placeholder="viewMode === 'history' && !isContinuingHistory ? 'Continue this conversation...' : 'Message Claude...'"
+                @send="handleSendMessage"
+                @abort="abort()"
+                @abort-and-send="handleAbortAndSend"
+                @focus="isInputFocused = true"
+                @blur="isInputFocused = false"
               >
-                <UIcon :name="currentEffort.icon" class="size-3.5 shrink-0" :style="{ color: currentEffort.color }" />
-                <span>{{ currentEffort.label }}</span>
-              </button>
+                <template #controls>
+                  <!-- Model Selector -->
+                  <ChatV2ModelSelector
+                    v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
+                    v-model="selectedModel"
+                    :options="MODEL_OPTIONS_CHAT"
+                  />
 
-              <Transition
-                enter-active-class="transition duration-150 ease-out"
-                enter-from-class="opacity-0 translate-y-2 scale-95"
-                enter-to-class="opacity-100 translate-y-0 scale-100"
-                leave-active-class="transition duration-100 ease-in"
-                leave-from-class="opacity-100 translate-y-0 scale-100"
-                leave-to-class="opacity-0 translate-y-2 scale-95"
-              >
-                <div
-                  v-if="showEffortMenu"
-                  class="absolute bottom-full right-0 mb-1 w-56 rounded-xl border shadow-xl backdrop-blur-md overflow-hidden z-[200]"
-                  style="background: var(--surface-overlay); border-color: var(--border-subtle);"
-                >
-                  <div class="p-1.5">
+                  <!-- Permission Mode Selector -->
+                  <ChatV2PermissionModeSelector
+                    v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
+                    v-model="selectedPermissionMode"
+                    :options="permissionModeOptions"
+                  />
+
+                  <!-- Effort Level Selector -->
+                  <div ref="effortMenuRef" class="relative">
                     <button
-                      v-for="option in effortOptions"
-                      :key="option.value"
-                      class="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left"
-                      :style="{
-                        background: effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'transparent',
-                        color: effortLevel === option.value ? option.color : 'var(--text-primary)',
-                      }"
-                      @mouseenter="($event.currentTarget as HTMLElement).style.background = effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'color-mix(in srgb, var(--text-primary) 5%, transparent)'"
-                      @mouseleave="($event.currentTarget as HTMLElement).style.background = effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'transparent'"
-                      @click="effortLevel = option.value; showEffortMenu = false"
+                      class="ctrl-btn"
+                      :title="`Effort: ${currentEffort.label}`"
+                      @click="showEffortMenu = !showEffortMenu"
                     >
-                      <UIcon :name="option.icon" class="size-4 shrink-0" :style="{ color: option.color }" />
-                      <div class="min-w-0">
-                        <div class="text-sm font-medium">{{ option.label }}</div>
-                        <div class="text-xs truncate" style="color: var(--text-tertiary);">{{ option.description }}</div>
-                      </div>
-                      <UIcon v-if="effortLevel === option.value" name="i-lucide-check" class="size-3.5 ml-auto shrink-0" :style="{ color: option.color }" />
+                      <UIcon :name="currentEffort.icon" class="size-3.5 shrink-0" :style="{ color: currentEffort.color }" />
+                      <span>{{ currentEffort.label }}</span>
                     </button>
-                  </div>
-                </div>
-              </Transition>
-            </div>
 
-            <!-- Context Usage -->
-            <button
-              class="ctrl-btn"
-              :title="`Context: ${contextMonitor.contextUsageText.value} — click for details`"
-              @click="openRightTab('context')"
-            >
-              <UIcon name="i-lucide-activity" class="size-3.5 shrink-0" :style="{ color: contextUsageColorHex }" />
-              <span :style="{ color: contextUsageColorHex }">{{ Math.round(contextMonitor.metrics.value.contextWindow.percentage) }}%</span>
-            </button>
-          </template>
-          </ChatV2Input>
+                    <Transition
+                      enter-active-class="transition duration-150 ease-out"
+                      enter-from-class="opacity-0 translate-y-2 scale-95"
+                      enter-to-class="opacity-100 translate-y-0 scale-100"
+                      leave-active-class="transition duration-100 ease-in"
+                      leave-from-class="opacity-100 translate-y-0 scale-100"
+                      leave-to-class="opacity-0 translate-y-2 scale-95"
+                    >
+                      <div
+                        v-if="showEffortMenu"
+                        class="absolute bottom-full right-0 mb-1 w-56 rounded-xl border shadow-xl backdrop-blur-md overflow-hidden z-[200]"
+                        style="background: var(--surface-overlay); border-color: var(--border-subtle);"
+                      >
+                        <div class="p-1.5">
+                          <button
+                            v-for="option in effortOptions"
+                            :key="option.value"
+                            class="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left"
+                            :style="{
+                              background: effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'transparent',
+                              color: effortLevel === option.value ? option.color : 'var(--text-primary)',
+                            }"
+                            @mouseenter="($event.currentTarget as HTMLElement).style.background = effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'color-mix(in srgb, var(--text-primary) 5%, transparent)'"
+                            @mouseleave="($event.currentTarget as HTMLElement).style.background = effortLevel === option.value ? `color-mix(in srgb, ${option.color} 12%, transparent)` : 'transparent'"
+                            @click="effortLevel = option.value; showEffortMenu = false"
+                          >
+                            <UIcon :name="option.icon" class="size-4 shrink-0" :style="{ color: option.color }" />
+                            <div class="min-w-0">
+                              <div class="text-sm font-medium">{{ option.label }}</div>
+                              <div class="text-xs truncate" style="color: var(--text-tertiary);">{{ option.description }}</div>
+                            </div>
+                            <UIcon v-if="effortLevel === option.value" name="i-lucide-check" class="size-3.5 ml-auto shrink-0" :style="{ color: option.color }" />
+                          </button>
+                        </div>
+                      </div>
+                    </Transition>
+                  </div>
+
+                  <!-- Context Usage -->
+                  <button
+                    class="ctrl-btn"
+                    :title="`Context: ${contextMonitor.contextUsageText.value} — click for details`"
+                    @click="openRightTab('context')"
+                  >
+                    <UIcon name="i-lucide-activity" class="size-3.5 shrink-0" :style="{ color: contextUsageColorHex }" />
+                    <span :style="{ color: contextUsageColorHex }">{{ Math.round(contextMonitor.metrics.value.contextWindow.percentage) }}%</span>
+                  </button>
+                </template>
+              </ChatV2Input>
+            </div>
+          </div>
         </div>
-      </div>
+      </div><!-- end Messages Area -->
 
       </template>
 

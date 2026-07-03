@@ -241,9 +241,9 @@ onMounted(async () => {
 
     <!-- Input container (images live inside now) -->
     <div
-      class="relative rounded-2xl transition-all duration-200"
+      class="relative rounded-2xl transition-all duration-200 backdrop-blur-lg"
       :style="{
-        background: 'var(--surface-raised)',
+        background: 'var(--surface-glass)',
         border: isFocused
           ? '1px solid var(--accent)'
           : '1px solid var(--border-default)',
