@@ -1498,6 +1498,14 @@ async function handlePermissionResponse(permissionId: string, decision: 'allow' 
   respondToPermission(permissionId, decision, remember, updatedInput)
 }
 
+// Scroll the inline permission card into view (triggered by header banner)
+function focusPermission(permissionId: string) {
+  const el = document.getElementById(`perm-${permissionId}`)
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+}
+
 // Handle interactive prompt response
 function handlePromptResponse(promptId: string, value: string) {
   respondToPrompt(promptId, value)
@@ -1965,7 +1973,7 @@ function handleClosePreview() {
       <ChatV2PermissionBanner
         v-if="hasPendingPermissions"
         :permissions="permissions.getAllPending()"
-        @respond="handlePermissionResponse"
+        @focus="focusPermission"
       />
 
       <!-- Messages Area -->

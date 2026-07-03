@@ -1120,9 +1120,11 @@ function informationalStyle(level?: string): Record<string, string> {
 
     <!-- Permission Request -->
     <template v-else-if="message.kind === 'permission_request'">
-      <!-- After decision: show compact result -->
-      <div v-if="permissionDecision" class="flex flex-col gap-1.5 py-1">
-        <!-- Collapsible AskUserQuestion History -->
+      <!-- Anchor for header banner scroll-to-focus -->
+      <div :id="`perm-${message.requestId || message.id}`" class="scroll-mt-4">
+        <!-- After decision: show compact result -->
+        <div v-if="permissionDecision" class="flex flex-col gap-1.5 py-1">
+          <!-- Collapsible AskUserQuestion History -->
         <template v-if="isAskUserQuestion && askUserQuestions">
           <button
             class="flex items-start gap-1.5 text-[11px] md:text-[12px] w-full text-left"
@@ -1316,6 +1318,7 @@ function informationalStyle(level?: string): Record<string, string> {
           >
             Cancel
           </button>
+        </div>
         </div>
       </div>
     </template>
