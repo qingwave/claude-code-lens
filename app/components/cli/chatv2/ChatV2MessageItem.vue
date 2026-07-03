@@ -703,8 +703,8 @@ function informationalStyle(level?: string): Record<string, string> {
       </div>
     </template>
 
-    <!-- Tool Use - Read show filename only, Glob shows pattern, ToolSearch shows query (non-clickable) -->
-    <template v-else-if="message.kind === 'tool_use' && ['read', 'glob', 'toolsearch', 'read_file', 'glob_search'].includes((message.toolName || '').toLowerCase())">
+    <!-- Tool Use - Read/Glob/Grep/ToolSearch: compact single-line display, no chevron -->
+    <template v-else-if="message.kind === 'tool_use' && ['read', 'glob', 'grep', 'toolsearch', 'read_file', 'glob_search', 'grep_search'].includes((message.toolName || '').toLowerCase())">
       <div class="flex items-start gap-2">
         <!-- Left border indicator -->
         <div
@@ -732,9 +732,24 @@ function informationalStyle(level?: string): Record<string, string> {
             <!-- Non-clickable pattern for Glob -->
             <template v-else-if="['glob', 'glob_search'].includes((message.toolName || '').toLowerCase()) && toolFileName">
               <span style="color: var(--text-tertiary);">:</span>
-              <span class="font-mono text-[11px] text-meta break-all" :title="toolFileName">
+              <span class="font-mono text-[11px] break-all" style="color: var(--text-secondary);" :title="toolFileName">
                 {{ toolFileName }}
               </span>
+            </template>
+
+            <!-- Non-clickable pattern for Grep -->
+            <template v-else-if="['grep', 'grep_search'].includes((message.toolName || '').toLowerCase())">
+              <template v-if="message.toolInput?.pattern || message.toolInput?.query">
+                <span style="color: var(--text-tertiary);">:</span>
+                <span class="font-mono text-[11px] break-all" :style="{ color: getToolColor(message.toolName || 'unknown') }">
+                  {{ message.toolInput?.pattern || message.toolInput?.query }}
+                </span>
+              </template>
+              <template v-if="message.toolInput?.path || message.toolInput?.include">
+                <span class="font-mono text-[11px] break-all" style="color: var(--text-tertiary);">
+                  {{ message.toolInput?.path || message.toolInput?.include }}
+                </span>
+              </template>
             </template>
 
             <!-- Non-clickable query for ToolSearch -->

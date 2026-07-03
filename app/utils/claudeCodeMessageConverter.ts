@@ -194,14 +194,19 @@ export function convertClaudeCodeMessages(messages: ClaudeCodeMessage[]): Displa
     // Handle assistant messages - parse content array
     else if (msg.type === 'assistant' || msg.message?.role === 'assistant') {
       if (Array.isArray(content)) {
-        for (const block of content) {
+        const baseTs = new Date(msg.timestamp || 0).getTime()
+        for (let blockIndex = 0; blockIndex < content.length; blockIndex++) {
+          const block = content[blockIndex]!
+          // Each block gets a +blockIndex ms offset so same-message blocks preserve their original order
+          const blockTimestamp = new Date(baseTs + blockIndex).toISOString()
+
           // Thinking blocks
           if (block.type === 'thinking' && block.thinking) {
             displayMessages.push({
               id: `${msg.uuid}-thinking-${block.thinking.slice(0, 20)}`,
               role: 'assistant',
               content: block.thinking,
-              timestamp: msg.timestamp,
+              timestamp: blockTimestamp,
               kind: 'thinking',
               thinking: block.thinking
             })
@@ -218,7 +223,7 @@ export function convertClaudeCodeMessages(messages: ClaudeCodeMessage[]): Displa
               id: `${msg.uuid}-text-${block.text.slice(0, 20)}`,
               role: 'assistant',
               content: block.text,
-              timestamp: msg.timestamp,
+              timestamp: blockTimestamp,
               kind: 'text'
             })
           }
@@ -250,7 +255,7 @@ export function convertClaudeCodeMessages(messages: ClaudeCodeMessage[]): Displa
               displayMessages.push({
                 id: block.id || `${msg.uuid}-tool-${block.name}`,
                 role: 'assistant',
-                timestamp: msg.timestamp,
+                timestamp: blockTimestamp,
                 kind: 'permission_request',
                 toolName: block.name,
                 toolInput: block.input,
@@ -263,7 +268,7 @@ export function convertClaudeCodeMessages(messages: ClaudeCodeMessage[]): Displa
                 id: block.id || `${msg.uuid}-tool-${block.name}`,
                 role: 'assistant',
                 content: '',
-                timestamp: msg.timestamp,
+                timestamp: blockTimestamp,
                 kind: 'tool_use',
                 toolName: block.name,
                 toolInput: block.input,
