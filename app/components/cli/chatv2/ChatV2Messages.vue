@@ -26,6 +26,24 @@ async function copyUserMessage(messageId: string, content: string) {
   }
 }
 
+// Track which assistant group is showing "copied" state
+const copiedGroupId = ref<string | null>(null)
+
+async function copyAssistantGroup(group: MessageGroup) {
+  const text = group.messages
+    .filter(m => m.kind === 'text' && m.content)
+    .map(m => m.content)
+    .join('\n\n')
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    copiedGroupId.value = group.id
+    setTimeout(() => { copiedGroupId.value = null }, 2000)
+  } catch (e) {
+    console.error('Failed to copy:', e)
+  }
+}
+
 // Group consecutive assistant messages together
 interface MessageGroup {
   id: string
@@ -84,7 +102,7 @@ function handleResend(content: string, images?: string[]) {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-5">
     <!-- Message Groups -->
     <div
       v-for="group in messageGroups"
@@ -154,10 +172,10 @@ function handleResend(content: string, images?: string[]) {
       </div>
 
       <!-- Assistant Message Group -->
-      <div v-else class="flex items-start gap-2 md:gap-3 min-w-0">
+      <div v-else class="flex items-start gap-2 md:gap-3 min-w-0 group/assistant">
         <!-- Claude Avatar -->
         <div
-          class="size-7 md:size-8 rounded-full shrink-0 flex items-center justify-center"
+          class="size-7 md:size-8 rounded-full shrink-0 flex items-center justify-center mt-0.5"
           style="background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);"
         >
           <svg class="size-3.5 md:size-4" viewBox="0 0 24 24" fill="white">
@@ -166,27 +184,45 @@ function handleResend(content: string, images?: string[]) {
         </div>
 
         <div class="flex-1 min-w-0 overflow-wrap-anywhere">
-          <!-- Claude Header -->
-          <div class="flex items-center gap-2 mb-1.5 md:mb-2">
-            <span class="text-[12px] md:text-[13px] font-semibold" style="color: var(--text-primary);">Claude</span>
-            <ClientOnly>
-              <span class="text-[9px] md:text-[10px]" style="color: var(--text-tertiary);">
-                {{ new Date(group.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
-              </span>
-            </ClientOnly>
-          </div>
-
           <!-- Messages in this group -->
           <div class="space-y-2">
             <template v-for="message in group.messages" :key="message.id">
               <ChatV2MessageItem
                 :message="message"
                 :show-timestamp="false"
+                :group-timestamp="message.kind === 'complete' ? group.timestamp : undefined"
+                :group-copied="message.kind === 'complete' ? (copiedGroupId === group.id) : undefined"
+                :show-copy="message.kind === 'complete' && group.messages.some(m => m.kind === 'text' && m.content)"
                 @permission-respond="handlePermissionRespond"
                 @prompt-respond="handlePromptRespond"
                 @open-file="handleOpenFile"
+                @copy-group="copyAssistantGroup(group)"
               />
             </template>
+          </div>
+
+          <!-- Bottom toolbar: timestamp + copy (only when no complete card) -->
+          <div
+            v-if="!group.messages.some(m => m.kind === 'complete')"
+            class="flex items-center gap-2 mt-1.5 opacity-0 group-hover/assistant:opacity-100 transition-opacity"
+          >
+            <ClientOnly>
+              <span class="text-[9px] md:text-[10px]" style="color: var(--text-tertiary);">
+                {{ new Date(group.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+              </span>
+            </ClientOnly>
+            <button
+              v-if="group.messages.some(m => m.kind === 'text' && m.content && !m.isStreaming)"
+              class="p-1 rounded"
+              title="Copy to clipboard"
+              @click="copyAssistantGroup(group)"
+            >
+              <UIcon
+                :name="copiedGroupId === group.id ? 'i-lucide-check' : 'i-lucide-copy'"
+                class="size-3.5"
+                :style="{ color: copiedGroupId === group.id ? '#22c55e' : 'var(--text-tertiary)' }"
+              />
+            </button>
           </div>
         </div>
       </div>
@@ -199,7 +235,7 @@ function handleResend(content: string, images?: string[]) {
     >
       <!-- Claude Avatar -->
       <div
-        class="size-7 md:size-8 rounded-full shrink-0 flex items-center justify-center"
+        class="size-7 md:size-8 rounded-full shrink-0 flex items-center justify-center mt-0.5"
         style="background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);"
       >
         <svg class="size-3.5 md:size-4" viewBox="0 0 24 24" fill="white">
@@ -207,10 +243,7 @@ function handleResend(content: string, images?: string[]) {
         </svg>
       </div>
 
-      <div class="flex-1 min-w-0 pt-1">
-        <div class="flex items-center gap-2 mb-1.5 md:mb-2">
-          <span class="text-[12px] md:text-[13px] font-semibold" style="color: var(--text-primary);">Claude</span>
-        </div>
+      <div class="flex-1 min-w-0 pt-0.5">
         <span class="streaming-cursor" />
       </div>
     </div>

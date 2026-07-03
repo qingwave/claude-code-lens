@@ -6,11 +6,15 @@ import { formatContent } from '~/utils/messageFormatting'
 const props = defineProps<{
   message: DisplayChatMessage
   showTimestamp?: boolean
+  groupTimestamp?: string
+  groupCopied?: boolean
+  showCopy?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'permissionRespond', permissionId: string, decision: 'allow' | 'deny', remember?: boolean, updatedInput?: any): void
   (e: 'openFile', filePath: string): void
+  (e: 'copyGroup'): void
 }>()
 
 // Collapsible states
@@ -631,21 +635,6 @@ function informationalStyle(level?: string): Record<string, string> {
           v-if="message.isStreaming"
           class="streaming-cursor"
         />
-
-        <!-- Copy button - appears on hover -->
-        <button
-          v-if="message.content && !message.isStreaming"
-          class="absolute -top-1 right-0 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-          style="background: var(--surface-raised);"
-          title="Copy to clipboard"
-          @click="copyContent"
-        >
-          <UIcon
-            :name="copied ? 'i-lucide-check' : 'i-lucide-copy'"
-            class="size-3.5"
-            :style="{ color: copied ? '#22c55e' : 'var(--text-tertiary)' }"
-          />
-        </button>
       </div>
     </template>
 
@@ -1460,38 +1449,50 @@ function informationalStyle(level?: string): Record<string, string> {
 
     <template v-else-if="message.kind === 'complete'">
       <div class="group/done flex items-center gap-2 mt-1">
-        <!-- ✓ + time always visible -->
+        <!-- Done pill — always visible, expands on hover -->
         <div
           class="flex items-center gap-1.5 px-2 py-0.5 rounded-full"
           style="border: 1px solid var(--border-subtle);"
         >
-          <UIcon name="i-lucide-check" class="size-3" style="color: #22c55e;" />
+          <UIcon name="i-lucide-check" class="size-3 shrink-0" style="color: #22c55e;" />
           <template v-if="message.metadata?.durationMs">
             <span class="text-[11px] font-mono" style="color: var(--text-tertiary);">
               {{ (message.metadata.durationMs / 1000).toFixed(1) }}s
             </span>
           </template>
+          <!-- Extra info inside pill, hover reveal -->
+          <div class="flex items-center gap-1.5 overflow-hidden max-w-0 group-hover/done:max-w-[300px] transition-all duration-200 opacity-0 group-hover/done:opacity-100">
+            <template v-if="message.metadata?.numTurns">
+              <span class="text-[10px] shrink-0" style="color: var(--text-tertiary);">·</span>
+              <UIcon name="i-lucide-repeat-2" class="size-3 shrink-0" style="color: var(--text-tertiary);" />
+              <span class="text-[11px] font-mono shrink-0" style="color: var(--text-tertiary);">{{ message.metadata.numTurns }}</span>
+            </template>
+            <template v-if="message.metadata?.aggregatedUsage?.totalCost">
+              <span class="text-[10px] shrink-0" style="color: var(--text-tertiary);">·</span>
+              <span class="text-[11px] font-mono shrink-0" style="color: var(--text-tertiary);">${{ message.metadata.aggregatedUsage.totalCost.toFixed(4) }}</span>
+            </template>
+          </div>
         </div>
-        <!-- Extra details revealed on hover -->
-        <div class="flex items-center gap-2 opacity-0 group-hover/done:opacity-100 transition-opacity duration-150">
-          <template v-if="message.metadata?.numTurns">
-            <span class="text-[10px]" style="color: var(--text-tertiary);">·</span>
-            <div class="flex items-center gap-1">
-              <UIcon name="i-lucide-repeat-2" class="size-3" style="color: var(--text-tertiary);" />
-              <span class="text-[11px] font-mono" style="color: var(--text-secondary);">
-                {{ message.metadata.numTurns }} turn{{ message.metadata.numTurns === 1 ? '' : 's' }}
-              </span>
-            </div>
-          </template>
-          <template v-if="message.metadata?.aggregatedUsage?.totalCost">
-            <span class="text-[10px]" style="color: var(--text-tertiary);">·</span>
-            <div class="flex items-center gap-1">
-              <UIcon name="i-lucide-dollar-sign" class="size-3" style="color: var(--text-tertiary);" />
-              <span class="text-[11px] font-mono" style="color: var(--text-secondary);">
-                ${{ message.metadata.aggregatedUsage.totalCost.toFixed(4) }}
-              </span>
-            </div>
-          </template>
+
+        <!-- Timestamp + copy — right side, hover reveal -->
+        <div class="flex items-center gap-1.5 opacity-0 group-hover/done:opacity-100 transition-opacity duration-150">
+          <ClientOnly>
+            <span v-if="groupTimestamp" class="text-[10px]" style="color: var(--text-tertiary);">
+              {{ new Date(groupTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+            </span>
+          </ClientOnly>
+          <button
+            v-if="showCopy"
+            class="hover:opacity-70 transition-opacity"
+            title="Copy to clipboard"
+            @click="emit('copyGroup')"
+          >
+            <UIcon
+              :name="groupCopied ? 'i-lucide-check' : 'i-lucide-copy'"
+              class="size-3.5"
+              :style="{ color: groupCopied ? '#22c55e' : 'var(--text-tertiary)' }"
+            />
+          </button>
         </div>
       </div>
     </template>

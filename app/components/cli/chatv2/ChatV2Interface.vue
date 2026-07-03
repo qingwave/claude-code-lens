@@ -2077,7 +2077,7 @@ function handleClosePreview() {
 
           <!-- Content column for messages (non-welcome states) -->
           <template v-else>
-          <div class="max-w-[1200px] mx-auto pl-4 pr-8 py-4 space-y-4 min-h-full min-w-0">
+          <div class="max-w-[800px] mx-auto pl-4 pr-8 py-4 space-y-4 min-h-full min-w-0">
 
             <!-- Empty state -->
             <div v-if="!isLoadingHistoryWithDelay && !isCreatingSession && displayMessages.length === 0 && !isStreaming && !isLoadingClaudeCodeMessages" class="flex items-center justify-center h-full">
@@ -2146,7 +2146,7 @@ function handleClosePreview() {
             class="pointer-events-auto"
             style="background: linear-gradient(to top, var(--surface-base), var(--surface-base) 60%, transparent);"
           >
-            <div class="max-w-[1200px] mx-auto pl-[52px] md:pl-[60px] pr-8">
+            <div class="max-w-[800px] mx-auto pl-[52px] md:pl-[60px] pr-8">
               <!-- Chat Input -->
               <ChatV2Input
                 v-model="inputText"
