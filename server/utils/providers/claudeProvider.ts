@@ -399,6 +399,7 @@ export const claudeProvider: ProviderAdapter = {
       })
 
       // Stream responses
+      let normalizedSentComplete = false
       for await (const message of queryInstance) {
         if (message.session_id && !capturedSessionId) {
           capturedSessionId = message.session_id
@@ -443,18 +444,24 @@ export const claudeProvider: ProviderAdapter = {
           if (msg.kind === 'text' && msg.role === 'assistant') {
             hasTextMessageFromResult = true
           }
+
+          if (msg.kind === 'complete') {
+            normalizedSentComplete = true
+          }
         }
       }
 
-      const completeMsg: NormalizedMessage = {
-        kind: 'complete',
-        id: randomUUID(),
-        sessionId: capturedSessionId || 'unknown',
-        timestamp: new Date().toISOString(),
-        content: '',
-        provider: 'claude',
+      if (!normalizedSentComplete) {
+        const completeMsg: NormalizedMessage = {
+          kind: 'complete',
+          id: randomUUID(),
+          sessionId: capturedSessionId || 'unknown',
+          timestamp: new Date().toISOString(),
+          content: '',
+          provider: 'claude',
+        }
+        sendMessage(ws, completeMsg)
       }
-      sendMessage(ws, completeMsg)
 
       // Patch entrypoint in session JSONL so it appears in `claude --resume`
       if (capturedSessionId) {

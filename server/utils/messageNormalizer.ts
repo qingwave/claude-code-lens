@@ -281,7 +281,7 @@ export function normalizeSDKMessage(
         id: randomUUID(),
         sessionId,
         timestamp,
-        content: sdkMessage.result || '',
+        content: '',
         metadata: {
           stopReason: sdkMessage.stop_reason,
           durationMs: sdkMessage.duration_ms,
