@@ -256,21 +256,26 @@ export function useSessionStore() {
     if (existingIdx >= 0) {
       updated = [...slot.realtimeMessages]
       const existing = updated[existingIdx]
-      
+
       // Merge properties
       const merged = { ...existing, ...msg }
-      
+
+      // Preserve the earliest timestamp so sort order reflects when the message first appeared.
+      // stream_event content_block_start arrives before tool execution completes, so the existing
+      // timestamp is always earlier. Fall back to msg.timestamp only if existing has none.
+      merged.timestamp = existing.timestamp ?? msg.timestamp
+
       // Special handling for toolInput: preserve existing input if the new one is empty
       // This prevents full tool_use messages (which often have empty toolInput initially)
       // from overwriting the deltas we've been accumulating.
       if (
-        existing.toolInput && 
-        Object.keys(existing.toolInput).length > 0 && 
+        existing.toolInput &&
+        Object.keys(existing.toolInput).length > 0 &&
         (!msg.toolInput || Object.keys(msg.toolInput).length === 0)
       ) {
         merged.toolInput = existing.toolInput
       }
-      
+
       updated[existingIdx] = merged
     } else {
       updated = [...slot.realtimeMessages, msg]

@@ -218,10 +218,19 @@ export function useChatV2Handler() {
         if (sessionId) {
           const toolId = message.metadata?.toolUseId || message.toolId || 'unknown'
           const toolUseId = toolId.startsWith('__tool_') ? toolId : `__tool_${toolId}`
-          
+
+          // Flush any accumulated streaming text into the store BEFORE appending the tool_use.
+          // This guarantees __streaming_xxx is inserted before tool_use in realtimeMessages,
+          // so the display order (text → tool) is correct even before finalize.
+          streamingBuffer.flush()
+          const pendingText = streamingBuffer.accumulatedText.value
+          if (pendingText && streamingBuffer.currentSessionId.value) {
+            sessionStore.updateStreaming(streamingBuffer.currentSessionId.value, pendingText)
+          }
+
           // Set active tool ID in streaming buffer so subsequent deltas go here
           streamingBuffer.setActiveToolId(toolUseId)
-          
+
           sessionStore.appendRealtime(sessionId, {
             ...message,
             id: toolUseId,

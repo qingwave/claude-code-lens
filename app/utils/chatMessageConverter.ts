@@ -74,10 +74,10 @@ export function convertToDisplayMessages(
   messages: NormalizedMessage[],
   streamingText?: string
 ): DisplayChatMessage[] {
-  // Sort messages by timestamp first to ensure Turn-based deduplication works correctly
-  const sortedMessages = [...messages].sort((a, b) =>
-    new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime()
-  )
+  // Do NOT sort here. Messages come from computeMerged which already sorts server+realtime
+  // by timestamp, and realtime-only sessions are in correct insertion order.
+  // Sorting here would destabilize realtime messages that share the same timestamp.
+  const sortedMessages = messages
 
   const displayMessages: DisplayChatMessage[] = []
   const toolResultsMap = new Map<string, any>()
@@ -168,7 +168,8 @@ export function convertToDisplayMessages(
     }
   }
 
-  // Add streaming message if present
+  // Add streaming message if present — no sort is applied above, so appending here
+  // places it after all committed messages, which is the correct position.
   if (streamingText) {
     displayMessages.push({
       id: '__streaming__',
