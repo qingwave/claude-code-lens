@@ -1459,25 +1459,21 @@ function informationalStyle(level?: string): Record<string, string> {
     </template>
 
     <template v-else-if="message.kind === 'complete'">
-      <div
-        class="rounded-xl px-4 py-3 space-y-2.5"
-        style="background: var(--surface-raised); border: 1px solid var(--border-subtle);"
-      >
-        <!-- Meta row: duration / turns / cost -->
-        <div class="flex items-center gap-3 flex-wrap">
-          <div class="flex items-center gap-1.5">
-            <UIcon name="i-lucide-check-circle-2" class="size-3.5" style="color: #22c55e;" />
-            <span class="text-[11px] font-medium" style="color: #22c55e;">Done</span>
-          </div>
+      <div class="group/done flex items-center gap-2 mt-1">
+        <!-- ✓ + time always visible -->
+        <div
+          class="flex items-center gap-1.5 px-2 py-0.5 rounded-full"
+          style="border: 1px solid var(--border-subtle);"
+        >
+          <UIcon name="i-lucide-check" class="size-3" style="color: #22c55e;" />
           <template v-if="message.metadata?.durationMs">
-            <span class="text-[10px]" style="color: var(--text-tertiary);">·</span>
-            <div class="flex items-center gap-1">
-              <UIcon name="i-lucide-clock" class="size-3" style="color: var(--text-tertiary);" />
-              <span class="text-[11px] font-mono" style="color: var(--text-secondary);">
-                {{ (message.metadata.durationMs / 1000).toFixed(1) }}s
-              </span>
-            </div>
+            <span class="text-[11px] font-mono" style="color: var(--text-tertiary);">
+              {{ (message.metadata.durationMs / 1000).toFixed(1) }}s
+            </span>
           </template>
+        </div>
+        <!-- Extra details revealed on hover -->
+        <div class="flex items-center gap-2 opacity-0 group-hover/done:opacity-100 transition-opacity duration-150">
           <template v-if="message.metadata?.numTurns">
             <span class="text-[10px]" style="color: var(--text-tertiary);">·</span>
             <div class="flex items-center gap-1">
@@ -1497,12 +1493,6 @@ function informationalStyle(level?: string): Record<string, string> {
             </div>
           </template>
         </div>
-        <!-- Recap text -->
-        <p
-          v-if="message.content"
-          class="text-[12px] leading-relaxed"
-          style="color: var(--text-secondary);"
-        >{{ message.content }}</p>
       </div>
     </template>
 

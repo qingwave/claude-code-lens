@@ -26,24 +26,6 @@ async function copyUserMessage(messageId: string, content: string) {
   }
 }
 
-// Track which assistant group is showing "copied" state
-const copiedGroupId = ref<string | null>(null)
-
-async function copyAssistantGroup(groupId: string, messages: DisplayChatMessage[]) {
-  const text = messages
-    .filter(m => m.kind === 'text' && m.content)
-    .map(m => m.content)
-    .join('\n\n')
-  if (!text) return
-  try {
-    await navigator.clipboard.writeText(text)
-    copiedGroupId.value = groupId
-    setTimeout(() => { copiedGroupId.value = null }, 2000)
-  } catch (e) {
-    console.error('Failed to copy:', e)
-  }
-}
-
 // Group consecutive assistant messages together
 interface MessageGroup {
   id: string
@@ -185,38 +167,26 @@ function handleResend(content: string, images?: string[]) {
 
         <div class="flex-1 min-w-0 overflow-wrap-anywhere">
           <!-- Claude Header -->
-          <div class="group/header flex items-center gap-2 mb-1.5 md:mb-2">
+          <div class="flex items-center gap-2 mb-1.5 md:mb-2">
             <span class="text-[12px] md:text-[13px] font-semibold" style="color: var(--text-primary);">Claude</span>
             <ClientOnly>
               <span class="text-[9px] md:text-[10px]" style="color: var(--text-tertiary);">
                 {{ new Date(group.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
               </span>
             </ClientOnly>
-            <button
-              v-if="group.messages.some(m => m.kind === 'text' && m.content)"
-              class="p-0.5 rounded opacity-0 group-hover/header:opacity-100 transition-opacity"
-              title="Copy response"
-              @click="copyAssistantGroup(group.id, group.messages)"
-            >
-              <UIcon
-                :name="copiedGroupId === group.id ? 'i-lucide-check' : 'i-lucide-copy'"
-                class="size-3"
-                :style="{ color: copiedGroupId === group.id ? '#22c55e' : 'var(--text-tertiary)' }"
-              />
-            </button>
           </div>
 
           <!-- Messages in this group -->
           <div class="space-y-2">
-            <ChatV2MessageItem
-              v-for="message in group.messages"
-              :key="message.id"
-              :message="message"
-              :show-timestamp="false"
-              @permission-respond="handlePermissionRespond"
-              @prompt-respond="handlePromptRespond"
-              @open-file="handleOpenFile"
-            />
+            <template v-for="message in group.messages" :key="message.id">
+              <ChatV2MessageItem
+                :message="message"
+                :show-timestamp="false"
+                @permission-respond="handlePermissionRespond"
+                @prompt-respond="handlePromptRespond"
+                @open-file="handleOpenFile"
+              />
+            </template>
           </div>
         </div>
       </div>

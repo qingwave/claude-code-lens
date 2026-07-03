@@ -645,30 +645,42 @@ const displayMessages = computed<DisplayChatMessage[]>(() => {
     if (historyMessages.length > 0 && !isContinuingHistory.value) {
       merged = historyMessages
     } else {
-      // Always check for live messages if we have a session ID
+      // Continuing a history session: show history + any new live messages
       if (liveSessionId) {
         const liveMessages = sessionStore.getMessages(liveSessionId)
-        // If we have live messages or streaming text, combine them
         if (liveMessages.length > 0 || streamingText.value) {
           const newMessages = convertToDisplayMessages(liveMessages, streamingText.value)
 
-          // Dedup by ID first, then by role+content for messages with different IDs
-          // (history user messages have JSONL uuid, live echo has user-{timestamp})
+          // History message IDs are JSONL uuids (e.g. "abc123-text-...").
+          // Live message IDs are random (e.g. "text_1719..._abc"). IDs never match across sources.
+          // Dedup by content for text messages, keyed by role+turnIndex+content so identical
+          // replies in different turns are not wrongly filtered.
           const historyIds = new Set(historyMessages.map(m => m.id))
-          const historyKeys = new Set(
-            historyMessages
-              .filter(m => m.role === 'user')
-              .map(m => `${m.role}:${(m.content || '').toString().trim().substring(0, 100)}`)
-          )
+          let turnIndex = 0
+          const historyContentKeys = new Set<string>()
+          for (const m of historyMessages) {
+            if (m.role === 'user') turnIndex++
+            if ((m.role === 'user' || m.role === 'assistant') && m.kind === 'text') {
+              historyContentKeys.add(`${m.role}:${turnIndex}:${(m.content || '').toString().trim().substring(0, 200)}`)
+            }
+          }
+          // Count turns in live messages to align with history turn numbering
+          const liveTurnOffset = turnIndex
+          let liveTurn = liveTurnOffset
+          // Find the latest complete among live messages — only keep this one Done card.
+          const liveCompletes = newMessages.filter(m => m.kind === 'complete')
+          const latestCompleteId = liveCompletes.at(-1)?.id ?? null
           const uniqueNewMessages = newMessages.filter(m => {
             if (historyIds.has(m.id)) return false
-            if (m.role === 'user') {
-              const key = `${m.role}:${(m.content || '').toString().trim().substring(0, 100)}`
-              if (historyKeys.has(key)) return false
+            if (m.kind === 'complete') return m.id === latestCompleteId
+            if (m.role === 'user') liveTurn++
+            if ((m.role === 'user' || m.role === 'assistant') && m.kind === 'text' && !m.isStreaming) {
+              const key = `${m.role}:${liveTurn}:${(m.content || '').toString().trim().substring(0, 200)}`
+              if (historyContentKeys.has(key)) return false
             }
             return true
           })
-          
+
           merged = [...historyMessages, ...uniqueNewMessages]
         } else {
           merged = historyMessages
@@ -829,6 +841,17 @@ function scrollToBottom(behavior: ScrollBehavior = 'auto'): Promise<void> {
 
 // Handle Claude Code history session selection
 async function handleClaudeCodeSessionSelected(payload: { projectName: string; sessionId: string; sessionSummary: string; projectDisplayName: string }) {
+  // Guard: if this session is the one we're currently live-chatting (or just finished),
+  // don't switch to history mode — just sync sidebar state.
+  // Check both currentSessionId (set by session_created) and urlSessionId (set by refreshProjectForNewSession).
+  if (payload.sessionId === currentSessionId.value || (payload.sessionId === urlSessionId.value && viewMode.value === 'live')) {
+    urlProjectName.value = payload.projectName
+    urlSessionId.value = payload.sessionId
+    currentSessionSummary.value = payload.sessionSummary
+    currentProjectDisplayName.value = payload.projectDisplayName
+    return
+  }
+
   activeConfigPanel.value = null
   isOnSettingsRoute.value = false
   viewMode.value = 'history'
@@ -965,19 +988,19 @@ async function refreshProjectForNewSession(newId: string, workingDir: string) {
 
   // Update sidebar state
   urlProjectName.value = matchingProject.name
+  urlSessionId.value = newId  // Set before any awaits so route watcher guard fires correctly
   currentProjectDisplayName.value = matchingProject.displayName
   history.selectedProject.value = matchingProject
 
   // Refresh sessions list
   await history.fetchSessions(matchingProject.name)
   await sidebarRef.value?.refreshProject(matchingProject.name)
-  urlSessionId.value = newId
 
   let newSession = history.sessions.value.find(s => s.id === newId)
 
-  if (!newSession) {
-    // JSONL may not be flushed yet — wait briefly and retry once
-    await new Promise(resolve => setTimeout(resolve, 1000))
+  // JSONL may not be flushed yet — poll up to 3 times at 300ms intervals
+  for (let i = 0; i < 3 && !newSession; i++) {
+    await new Promise(resolve => setTimeout(resolve, 300))
     await history.fetchSessions(matchingProject.name)
     newSession = history.sessions.value.find(s => s.id === newId)
   }
@@ -1088,7 +1111,7 @@ watch(
         // Full session URL: /cli/project/:projectName/session/:sessionId
         // Guard: already showing this session (history mode) or actively live-chatting it (live mode)
         if (urlProjectName.value === resolvedProjectName && urlSessionId.value === sessionId &&
-          (viewMode.value === 'history' || (viewMode.value === 'live' && currentSessionId.value === sessionId))) return
+          (viewMode.value === 'history' || viewMode.value === 'live')) return
 
         const session = history.sessions.value.find(s => s.id === sessionId)
         const sessionSummary = session?.summary || ''
