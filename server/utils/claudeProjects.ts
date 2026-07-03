@@ -9,6 +9,7 @@ export interface ClaudeProject {
   displayName: string
   path: string
   sessionsCount: number
+  lastActivity?: string
 }
 
 export interface ClaudeSession {
@@ -18,37 +19,22 @@ export interface ClaudeSession {
   messageCount: number
 }
 
-/**
- * Get Claude projects directory
- */
 function getProjectsDir(): string {
   return path.join(os.homedir(), '.claude', 'projects')
 }
 
-/**
- * Decode project name to path
- * Example: -Users-liamnguyen-Documents-agents-ui -> /Users/liamnguyen/Documents/agents-ui
- */
 function decodeProjectName(encodedName: string): string {
   return encodedName.replace(/^-/, '/').replace(/-/g, '/')
 }
 
-/**
- * Get display name from project path
- */
 function getDisplayName(projectPath: string): string {
   const parts = projectPath.split('/')
   return parts[parts.length - 1] || projectPath
 }
 
-/**
- * List all Claude Code projects
- */
 export async function listProjects(): Promise<ClaudeProject[]> {
   try {
     const projectsDir = getProjectsDir()
-
-    // Check if directory exists
     try {
       await fs.access(projectsDir)
     } catch {
@@ -56,27 +42,41 @@ export async function listProjects(): Promise<ClaudeProject[]> {
     }
 
     const entries = await fs.readdir(projectsDir, { withFileTypes: true })
-    const projects: ClaudeProject[] = []
 
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue
+    const projects = await Promise.all(
+      entries
+        .filter(e => e.isDirectory())
+        .map(async (entry) => {
+          const projectPath = decodeProjectName(entry.name)
+          const projectDir = path.join(projectsDir, entry.name)
 
-      const projectPath = decodeProjectName(entry.name)
-      const projectDir = path.join(projectsDir, entry.name)
+          const files = await fs.readdir(projectDir)
+          const sessionFiles = files.filter(f => f.endsWith('.jsonl') && !f.startsWith('agent-'))
 
-      // Count sessions (.jsonl files, excluding agent-*.jsonl)
-      const files = await fs.readdir(projectDir)
-      const sessionFiles = files.filter(file =>
-        file.endsWith('.jsonl') && !file.startsWith('agent-')
-      )
+          // Find lastActivity from the most recently modified non-empty session file
+          let lastActivity: string | undefined
+          if (sessionFiles.length > 0) {
+            const mtimes = (await Promise.all(
+              sessionFiles.map(async (file) => {
+                const stat = await fs.stat(path.join(projectDir, file))
+                return stat.size > 0 ? stat.mtime : null
+              })
+            )).filter((t): t is Date => t !== null)
 
-      projects.push({
-        name: entry.name,
-        displayName: getDisplayName(projectPath),
-        path: projectPath,
-        sessionsCount: sessionFiles.length,
-      })
-    }
+            if (mtimes.length > 0) {
+              lastActivity = mtimes.reduce((a, b) => (a > b ? a : b)).toISOString()
+            }
+          }
+
+          return {
+            name: entry.name,
+            displayName: getDisplayName(projectPath),
+            path: projectPath,
+            sessionsCount: sessionFiles.length,
+            lastActivity,
+          }
+        })
+    )
 
     return projects
   } catch (error) {
@@ -85,47 +85,38 @@ export async function listProjects(): Promise<ClaudeProject[]> {
   }
 }
 
-/**
- * List sessions for a project
- */
 export async function listSessions(projectName: string): Promise<ClaudeSession[]> {
   try {
     const projectDir = path.join(getProjectsDir(), projectName)
 
     const files = await fs.readdir(projectDir)
-    const jsonlFiles = files.filter(file =>
-      file.endsWith('.jsonl') && !file.startsWith('agent-')
-    )
+    const jsonlFiles = files.filter(f => f.endsWith('.jsonl') && !f.startsWith('agent-'))
 
-    if (jsonlFiles.length === 0) {
-      return []
-    }
+    if (jsonlFiles.length === 0) return []
 
-    // Get file stats and sort by modification time
-    const filesWithStats = await Promise.all(
+    // Get stats, skip empty files, sort newest first
+    const filesWithStats = (await Promise.all(
       jsonlFiles.map(async (file) => {
-        const filePath = path.join(projectDir, file)
-        const stats = await fs.stat(filePath)
-        return { file, mtime: stats.mtime }
+        const stat = await fs.stat(path.join(projectDir, file))
+        return stat.size > 0 ? { file, mtime: stat.mtime } : null
       })
-    )
-    filesWithStats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime())
+    ))
+      .filter((f): f is { file: string; mtime: Date } => f !== null)
+      .sort((a, b) => b.mtime.getTime() - a.mtime.getTime())
 
-    // Parse sessions
     const sessions: ClaudeSession[] = []
 
     for (const { file, mtime } of filesWithStats) {
       const sessionId = file.replace('.jsonl', '')
       const filePath = path.join(projectDir, file)
 
-      // Read first few lines to get summary
       let summary = 'New Session'
       let messageCount = 0
+      let lastTimestamp = mtime // fallback to mtime if no parseable timestamp
 
       try {
-        const fileStream = createReadStream(filePath)
         const rl = readline.createInterface({
-          input: fileStream,
+          input: createReadStream(filePath),
           crlfDelay: Infinity,
         })
 
@@ -136,28 +127,19 @@ export async function listSessions(projectName: string): Promise<ClaudeSession[]
           try {
             const entry = JSON.parse(line)
 
-            // Find first user message for summary
-            if (!summary || summary === 'New Session') {
-              if (entry.message?.role === 'user') {
-                const content = Array.isArray(entry.message.content)
-                  ? entry.message.content.find((c: any) => c.type === 'text')?.text
-                  : entry.message.content
+            if (entry.timestamp) {
+              lastTimestamp = new Date(entry.timestamp)
+            }
 
-                if (content && typeof content === 'string') {
-                  summary = content.length > 50
-                    ? content.substring(0, 50) + '...'
-                    : content
-                }
+            if (summary === 'New Session' && entry.message?.role === 'user') {
+              const content = Array.isArray(entry.message.content)
+                ? entry.message.content.find((c: any) => c.type === 'text')?.text
+                : entry.message.content
+              if (content && typeof content === 'string') {
+                summary = content.length > 50 ? content.substring(0, 50) + '...' : content
               }
             }
-
-            // Early exit after finding summary and counting ~10 messages
-            if (summary !== 'New Session' && messageCount > 10) {
-              break
-            }
-          } catch {
-            // Skip malformed lines
-          }
+          } catch { /* skip malformed lines */ }
         }
 
         rl.close()
@@ -168,7 +150,7 @@ export async function listSessions(projectName: string): Promise<ClaudeSession[]
       sessions.push({
         id: sessionId,
         summary,
-        lastActivity: mtime.toISOString(),
+        lastActivity: lastTimestamp.toISOString(),
         messageCount,
       })
     }
@@ -180,9 +162,6 @@ export async function listSessions(projectName: string): Promise<ClaudeSession[]
   }
 }
 
-/**
- * Get the current project name for a given directory path
- */
 export function getProjectName(projectPath: string): string {
   return projectPath.replace(/\//g, '-').replace(/^-/, '-')
 }

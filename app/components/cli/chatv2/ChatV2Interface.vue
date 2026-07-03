@@ -399,7 +399,7 @@ watch(() => history.selectedSession.value, (newSession) => {
 
 // Effort level selector
 type EffortLevel = 'low' | 'medium' | 'high' | 'max'
-const effortLevel = ref<EffortLevel>('medium')
+const effortLevel = ref<EffortLevel>('high')
 const showEffortMenu = ref(false)
 
 const effortOptions: { value: EffortLevel; label: string; icon: string; description: string; color: string }[] = [

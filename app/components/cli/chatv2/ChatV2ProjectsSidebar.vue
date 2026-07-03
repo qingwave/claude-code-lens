@@ -80,7 +80,7 @@ function isProjectRecent(lastActivity?: string): boolean {
 
 function ensureProjectState(name: string, lastActivity?: string) {
   if (!projectState[name]) {
-    const expanded = lastActivity !== undefined ? isProjectRecent(lastActivity) : true
+    const expanded = !!lastActivity && isProjectRecent(lastActivity)
     projectState[name] = { sessions: [], loading: false, hasMore: false, expanded, sessionsExpanded: false, tab: 'sessions' }
   }
 }
