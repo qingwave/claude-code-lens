@@ -1363,6 +1363,9 @@ function handleBuiltInCommandResult(result: any) {
   const { action, data } = result
   switch (action) {
     case 'clear':
+      // Switch to live mode so the confirmation appears in a clean slate,
+      // consistent with /clear semantics (context cleared = fresh start).
+      viewMode.value = 'live'
       if (currentSessionId.value) {
         sessionStore.clearRealtime(currentSessionId.value)
       }
@@ -1399,6 +1402,7 @@ function handleBuiltInCommandResult(result: any) {
  * Add a local user message to the current session
  */
 function addLocalUserMessage(content: string) {
+  if (viewMode.value === 'history') isContinuingHistory.value = true
   const sid = currentSessionId.value || `local-${Date.now()}`
   if (!currentSessionId.value) {
     setCurrentSessionId(sid)
@@ -1417,6 +1421,9 @@ function addLocalUserMessage(content: string) {
  * Add a local assistant message to the current session
  */
 function addLocalAssistantMessage(content: string) {
+  // In history mode, local messages only appear when continuing the session.
+  // /clear sets viewMode to live itself; all other callers just need the flag.
+  if (viewMode.value === 'history') isContinuingHistory.value = true
   const sid = currentSessionId.value || `local-${Date.now()}`
   if (!currentSessionId.value) {
     setCurrentSessionId(sid)
