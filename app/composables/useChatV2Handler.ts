@@ -286,6 +286,9 @@ export function useChatV2Handler() {
           // Update status
           sessionStore.setStatus(completeSessionId, 'idle')
           sessionStore.appendRealtime(completeSessionId, message)
+          // Trim old turns from realtimeMessages — history (JSONL) is the source of truth
+          // for past turns; keeping them in realtime causes unbounded growth and dedup issues
+          sessionStore.trimRealtimeToLastTurn(completeSessionId)
 
           // Update context monitor with aggregated usage from result
           if (message.metadata?.aggregatedUsage) {

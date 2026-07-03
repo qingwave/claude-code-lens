@@ -354,19 +354,22 @@ export function useSessionStore() {
     const slot = getSlot(sessionId)
     const streamId = `__streaming_${sessionId}`
 
-    const msg: NormalizedMessage = {
-      id: streamId,
-      sessionId,
-      timestamp: new Date().toISOString(),
-      kind: 'stream_delta',
-      content: accumulatedText,
-    }
-
     const idx = slot.realtimeMessages.findIndex(m => m.id === streamId)
     if (idx >= 0) {
+      // Update content but preserve original timestamp so sort order stays stable
       slot.realtimeMessages = [...slot.realtimeMessages]
-      slot.realtimeMessages[idx] = msg
+      slot.realtimeMessages[idx] = {
+        ...slot.realtimeMessages[idx]!,
+        content: accumulatedText,
+      }
     } else {
+      const msg: NormalizedMessage = {
+        id: streamId,
+        sessionId,
+        timestamp: new Date().toISOString(),
+        kind: 'stream_delta',
+        content: accumulatedText,
+      }
       slot.realtimeMessages = [...slot.realtimeMessages, msg]
     }
 
@@ -382,19 +385,21 @@ export function useSessionStore() {
     const slot = getSlot(sessionId)
     const thinkingId = `__thinking_${sessionId}`
 
-    const msg: NormalizedMessage = {
-      id: thinkingId,
-      sessionId,
-      timestamp: new Date().toISOString(),
-      kind: 'thinking',
-      content: thinkingContent,
-    }
-
     const idx = slot.realtimeMessages.findIndex(m => m.id === thinkingId)
     if (idx >= 0) {
       slot.realtimeMessages = [...slot.realtimeMessages]
-      slot.realtimeMessages[idx] = msg
+      slot.realtimeMessages[idx] = {
+        ...slot.realtimeMessages[idx]!,
+        content: thinkingContent,
+      }
     } else {
+      const msg: NormalizedMessage = {
+        id: thinkingId,
+        sessionId,
+        timestamp: new Date().toISOString(),
+        kind: 'thinking',
+        content: thinkingContent,
+      }
       slot.realtimeMessages = [...slot.realtimeMessages, msg]
     }
 
@@ -546,6 +551,32 @@ export function useSessionStore() {
   }
 
   /**
+   * Trim realtimeMessages to only the last turn (last user message onward).
+   * Called after complete to prevent unbounded growth across many turns.
+   * Keeps the current turn's messages for display; older turns are in JSONL history.
+   */
+  const trimRealtimeToLastTurn = (sessionId: string) => {
+    const slot = storeRef.value.get(sessionId)
+    if (!slot || slot.realtimeMessages.length === 0) return
+
+    // Find the index of the last user message
+    let lastUserIdx = -1
+    for (let i = slot.realtimeMessages.length - 1; i >= 0; i--) {
+      if (slot.realtimeMessages[i]?.role === 'user') {
+        lastUserIdx = i
+        break
+      }
+    }
+
+    // If there's more than one user message, trim everything before the last one
+    if (lastUserIdx > 0) {
+      slot.realtimeMessages = slot.realtimeMessages.slice(lastUserIdx)
+      recomputeMergedIfNeeded(slot)
+      notify(sessionId)
+    }
+  }
+
+  /**
    * Migrate messages from one session to another (e.g., 'pending' -> new SDK session)
    * Updates the sessionId field on each message.
    */
@@ -556,10 +587,13 @@ export function useSessionStore() {
     const toSlot = getSlot(toSessionId)
 
     // Migrate realtime messages, updating their sessionId
-    const migratedMessages = fromSlot.realtimeMessages.map(msg => ({
-      ...msg,
-      sessionId: toSessionId,
-    }))
+    // Drop any __streaming_* placeholders — they'll be recreated with the new session ID
+    const migratedMessages = fromSlot.realtimeMessages
+      .filter(msg => !msg.id.startsWith('__streaming_') && !msg.id.startsWith('__thinking_'))
+      .map(msg => ({
+        ...msg,
+        sessionId: toSessionId,
+      }))
 
     toSlot.realtimeMessages = [...toSlot.realtimeMessages, ...migratedMessages]
     recomputeMergedIfNeeded(toSlot)
@@ -734,6 +768,7 @@ export function useSessionStore() {
     finalizeStreaming,
     finalizeThinking,
     clearRealtime,
+    trimRealtimeToLastTurn,
     migrateSession,
     getMessages,
     getSessionSlot,
