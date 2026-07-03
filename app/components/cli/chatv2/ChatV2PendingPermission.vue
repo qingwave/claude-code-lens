@@ -9,10 +9,8 @@ const emit = defineEmits<{
   (e: 'respond', permissionId: string, decision: 'allow' | 'deny', remember?: boolean, updatedInput?: any): void
 }>()
 
-// Index of currently shown permission (for multi-pending pagination)
 const currentIndex = ref(0)
 
-// Reset index when permissions list changes
 watch(() => props.permissions.length, (newLen) => {
   if (currentIndex.value >= newLen) currentIndex.value = Math.max(0, newLen - 1)
 })
@@ -25,7 +23,6 @@ const isAskUserQuestion = computed(() => {
   return ['askuserquestion', 'ask_user', 'askuser', 'ask_user_question', 'prompt', 'input_request'].includes(tn)
 })
 
-// Parse AskUserQuestion structured input
 interface AskUserQuestionItem {
   question: string
   header?: string
@@ -43,17 +40,10 @@ const askUserQuestions = computed<AskUserQuestionItem[] | null>(() => {
   return [{ question: JSON.stringify(input) }]
 })
 
-// Per-question selected answers
 const selectedAnswers = ref<Map<number, Set<string>>>(new Map())
 
-// Reset selections when current permission changes
-watch(currentIndex, () => {
-  selectedAnswers.value = new Map()
-})
-
-watch(() => current.value?.id, () => {
-  selectedAnswers.value = new Map()
-})
+watch(currentIndex, () => { selectedAnswers.value = new Map() })
+watch(() => current.value?.id, () => { selectedAnswers.value = new Map() })
 
 function toggleAnswer(qi: number, label: string, multiSelect: boolean) {
   const cur = selectedAnswers.value.get(qi) ?? new Set<string>()
@@ -65,10 +55,7 @@ function toggleAnswer(qi: number, label: string, multiSelect: boolean) {
   }
   selectedAnswers.value.set(qi, cur)
   selectedAnswers.value = new Map(selectedAnswers.value)
-  // Auto-submit single-select single-question
-  if (!multiSelect && askUserQuestions.value?.length === 1) {
-    handleAllow()
-  }
+  if (!multiSelect && askUserQuestions.value?.length === 1) handleAllow()
 }
 
 function isSelected(qi: number, label: string) {
@@ -88,9 +75,7 @@ function buildUpdatedInput(): any {
   const answers: Record<string, string> = {}
   for (let i = 0; i < askUserQuestions.value.length; i++) {
     const selected = selectedAnswers.value.get(i)
-    if (selected?.size) {
-      answers[askUserQuestions.value[i]!.question] = Array.from(selected).join(', ')
-    }
+    if (selected?.size) answers[askUserQuestions.value[i]!.question] = Array.from(selected).join(', ')
   }
   const base = typeof current.value.toolInput === 'object'
     ? JSON.parse(JSON.stringify(current.value.toolInput))
@@ -108,7 +93,6 @@ function handleDeny() {
   emit('respond', current.value.id, 'deny', false)
 }
 
-// Tool display helpers
 function toolIcon(toolName: string) {
   const tn = toolName.toLowerCase()
   if (tn.includes('read')) return 'i-lucide-file-text'
@@ -130,7 +114,6 @@ function toolColor(toolName: string) {
   return 'var(--accent)'
 }
 
-// Extract file path / command from tool input
 const toolDetail = computed(() => {
   if (!current.value?.toolInput) return null
   const input = current.value.toolInput
@@ -147,13 +130,9 @@ const toolDetail = computed(() => {
   return null
 })
 
-// Whether this is an edit/write tool that has diff data
 const EDIT_TOOLS = new Set(['edit', 'write', 'applypatch', 'replace', 'write_file', 'apply_patch'])
 
-const isEditTool = computed(() => {
-  const tn = (current.value?.toolName || '').toLowerCase()
-  return EDIT_TOOLS.has(tn)
-})
+const isEditTool = computed(() => EDIT_TOOLS.has((current.value?.toolName || '').toLowerCase()))
 
 const diffData = computed(() => {
   if (!isEditTool.value || !current.value?.toolInput) return null
@@ -171,114 +150,135 @@ const diffData = computed(() => {
 })
 
 const showDiff = ref(false)
-
-// Reset diff state when permission changes
-watch(() => current.value?.id, () => {
-  showDiff.value = false
-})
+watch(() => current.value?.id, () => { showDiff.value = false })
 </script>
 
 <template>
-  <div
-    v-if="permissions.length > 0 && current"
-    class="mx-auto max-w-[800px] px-4 md:px-8 mb-2"
-  >
-    <div
-      class="rounded-xl border overflow-hidden"
-      style="background: var(--surface-overlay); border-color: var(--accent);"
-    >
-      <!-- Header bar -->
-      <div
-        class="flex items-center gap-2 px-3 py-2 border-b"
-        style="background: rgba(229,169,62,0.08); border-color: rgba(229,169,62,0.2);"
-      >
-        <UIcon name="i-lucide-shield-question" class="size-3.5 shrink-0" style="color: var(--accent);" />
-        <span class="text-[12px] font-semibold flex-1" style="color: var(--text-primary);">Action Required</span>
+  <div v-if="permissions.length > 0 && current" class="mb-2">
+    <div class="permission-card rounded-2xl overflow-hidden" style="border: 1px solid rgba(229,169,62,0.25); background: var(--surface-overlay);">
+
+      <!-- Top accent strip -->
+      <div class="h-[2px] w-full" style="background: linear-gradient(90deg, rgba(229,169,62,0.8) 0%, rgba(234,88,12,0.5) 100%);" />
+
+      <!-- Header -->
+      <div class="flex items-center gap-2.5 px-4 pt-3 pb-2">
+        <div
+          class="size-6 rounded-lg flex items-center justify-center shrink-0"
+          style="background: rgba(229,169,62,0.12);"
+        >
+          <UIcon name="i-lucide-shield-question" class="size-3.5" style="color: var(--accent);" />
+        </div>
+
+        <div class="flex-1 min-w-0">
+          <span class="text-[11px] font-semibold tracking-wide uppercase" style="color: var(--accent); letter-spacing: 0.06em;">
+            Permission Request
+          </span>
+        </div>
 
         <!-- Multi-pending pagination -->
         <template v-if="total > 1">
-          <span class="text-[11px]" style="color: var(--text-tertiary);">{{ currentIndex + 1 }} / {{ total }}</span>
-          <button
-            class="p-0.5 rounded disabled:opacity-30"
-            :disabled="currentIndex === 0"
-            @click="currentIndex--"
-          >
-            <UIcon name="i-lucide-chevron-up" class="size-3.5" style="color: var(--text-secondary);" />
-          </button>
-          <button
-            class="p-0.5 rounded disabled:opacity-30"
-            :disabled="currentIndex === total - 1"
-            @click="currentIndex++"
-          >
-            <UIcon name="i-lucide-chevron-down" class="size-3.5" style="color: var(--text-secondary);" />
-          </button>
+          <div class="flex items-center gap-1 px-2 py-0.5 rounded-full" style="background: var(--surface-raised);">
+            <button
+              class="p-0.5 rounded transition-opacity disabled:opacity-25"
+              :disabled="currentIndex === 0"
+              @click="currentIndex--"
+            >
+              <UIcon name="i-lucide-chevron-left" class="size-3" style="color: var(--text-secondary);" />
+            </button>
+            <span class="text-[11px] font-mono px-0.5" style="color: var(--text-secondary);">{{ currentIndex + 1 }}/{{ total }}</span>
+            <button
+              class="p-0.5 rounded transition-opacity disabled:opacity-25"
+              :disabled="currentIndex === total - 1"
+              @click="currentIndex++"
+            >
+              <UIcon name="i-lucide-chevron-right" class="size-3" style="color: var(--text-secondary);" />
+            </button>
+          </div>
         </template>
       </div>
 
+      <!-- Divider -->
+      <div class="mx-4" style="height: 1px; background: var(--border-subtle);" />
+
       <!-- Body -->
-      <div class="px-3 py-2.5">
+      <div class="px-4 py-3">
 
         <!-- AskUserQuestion -->
         <template v-if="isAskUserQuestion && askUserQuestions">
-          <div v-for="(q, qi) in askUserQuestions" :key="qi" class="mb-2 last:mb-0">
-            <p v-if="q.header" class="text-[11px] font-semibold mb-0.5" style="color: var(--text-primary);">{{ q.header }}</p>
-            <p class="text-[12px] mb-2" style="color: var(--text-secondary);">{{ q.question }}</p>
-            <div v-if="q.options?.length" class="space-y-1">
+          <div v-for="(q, qi) in askUserQuestions" :key="qi" :class="qi > 0 ? 'mt-4' : ''">
+            <p v-if="q.header" class="text-[11px] font-semibold mb-1" style="color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;">{{ q.header }}</p>
+            <p class="text-[13px] leading-snug mb-3" style="color: var(--text-primary);">{{ q.question }}</p>
+            <div v-if="q.options?.length" class="space-y-1.5">
               <button
                 v-for="(opt, oi) in q.options"
                 :key="oi"
-                class="flex items-start gap-2 px-2.5 py-1.5 rounded-lg w-full text-left transition-all"
+                class="option-btn flex items-start gap-3 px-3 py-2.5 rounded-xl w-full text-left transition-all"
+                :class="{ 'option-selected': isSelected(qi, opt.label) }"
                 :style="{
-                  background: isSelected(qi, opt.label) ? 'rgba(229,169,62,0.15)' : 'var(--surface-raised)',
+                  background: isSelected(qi, opt.label) ? 'rgba(229,169,62,0.1)' : 'var(--surface-raised)',
                   border: '1px solid',
-                  borderColor: isSelected(qi, opt.label) ? 'var(--accent)' : 'transparent',
+                  borderColor: isSelected(qi, opt.label) ? 'rgba(229,169,62,0.5)' : 'var(--border-subtle)',
                 }"
                 @click="toggleAnswer(qi, opt.label, !!q.multiSelect)"
               >
-                <UIcon
-                  :name="isSelected(qi, opt.label) ? (q.multiSelect ? 'i-lucide-check-square' : 'i-lucide-circle-dot') : (q.multiSelect ? 'i-lucide-square' : 'i-lucide-circle')"
-                  class="size-3.5 mt-0.5 shrink-0"
-                  :style="{ color: isSelected(qi, opt.label) ? 'var(--accent)' : 'var(--text-tertiary)' }"
-                />
-                <div class="min-w-0">
+                <div
+                  class="size-4 rounded-full border-2 shrink-0 mt-0.5 flex items-center justify-center transition-all"
+                  :style="{
+                    borderColor: isSelected(qi, opt.label) ? 'var(--accent)' : 'var(--border-default)',
+                    background: isSelected(qi, opt.label) ? 'var(--accent)' : 'transparent',
+                  }"
+                >
+                  <div v-if="isSelected(qi, opt.label)" class="size-1.5 rounded-full bg-white" />
+                </div>
+                <div class="min-w-0 flex-1">
                   <span class="text-[12px] font-medium" style="color: var(--text-primary);">{{ opt.label }}</span>
-                  <p v-if="opt.description" class="text-[11px] mt-0.5" style="color: var(--text-tertiary);">{{ opt.description }}</p>
+                  <p v-if="opt.description" class="text-[11px] mt-0.5 leading-snug" style="color: var(--text-tertiary);">{{ opt.description }}</p>
                 </div>
               </button>
             </div>
           </div>
         </template>
 
-        <!-- Regular tool -->
+        <!-- Regular tool permission -->
         <template v-else>
-          <div class="flex items-center gap-2">
-            <UIcon
-              :name="toolIcon(current.toolName || '')"
-              class="size-4 shrink-0"
-              :style="{ color: toolColor(current.toolName || '') }"
-            />
-            <span class="text-[13px] font-semibold" style="color: var(--text-primary);">{{ current.toolName }}</span>
-            <span v-if="toolDetail" class="text-[11px] truncate min-w-0" style="color: var(--text-tertiary);" :title="toolDetail">
-              {{ toolDetail }}
-            </span>
+          <!-- Tool identity row -->
+          <div class="flex items-center gap-3">
+            <div
+              class="size-8 rounded-xl flex items-center justify-center shrink-0"
+              :style="{ background: `${toolColor(current.toolName || '')}18` }"
+            >
+              <UIcon
+                :name="toolIcon(current.toolName || '')"
+                class="size-4"
+                :style="{ color: toolColor(current.toolName || '') }"
+              />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold" style="color: var(--text-primary);">{{ current.toolName }}</div>
+              <div v-if="toolDetail" class="text-[11px] truncate mt-0.5 font-mono" style="color: var(--text-tertiary);" :title="toolDetail">
+                {{ toolDetail }}
+              </div>
+            </div>
 
-            <!-- Diff toggle for Edit/Write tools -->
+            <!-- Diff toggle -->
             <button
               v-if="diffData"
-              class="ml-auto flex items-center gap-1 px-2 py-0.5 rounded text-[11px] transition-colors shrink-0"
+              class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all shrink-0"
               :style="{
                 background: showDiff ? 'rgba(245,158,11,0.12)' : 'var(--surface-raised)',
-                color: showDiff ? '#f59e0b' : 'var(--text-tertiary)',
+                color: showDiff ? '#f59e0b' : 'var(--text-secondary)',
+                border: '1px solid',
+                borderColor: showDiff ? 'rgba(245,158,11,0.3)' : 'var(--border-subtle)',
               }"
               @click="showDiff = !showDiff"
             >
-              <UIcon :name="showDiff ? 'i-lucide-chevron-up' : 'i-lucide-diff'" class="size-3" />
-              {{ showDiff ? 'Hide diff' : 'View diff' }}
+              <UIcon :name="showDiff ? 'i-lucide-eye-off' : 'i-lucide-diff'" class="size-3" />
+              {{ showDiff ? 'Hide' : 'Diff' }}
             </button>
           </div>
 
-          <!-- Inline diff preview -->
-          <div v-if="diffData && showDiff" class="mt-2">
+          <!-- Inline diff -->
+          <div v-if="diffData && showDiff" class="mt-3">
             <ToolDiffViewer
               :file-path="diffData.filePath"
               :old-content="diffData.oldString"
@@ -286,44 +286,70 @@ watch(() => current.value?.id, () => {
             />
           </div>
         </template>
+      </div>
 
-        <!-- Action buttons -->
-        <div class="flex items-center gap-2 mt-2.5">
-          <!-- AskUserQuestion: submit only when multi-select or multi-question -->
-          <template v-if="isAskUserQuestion && askUserQuestions">
-            <button
-              v-if="askUserQuestions.some(q => q.multiSelect) || askUserQuestions.length > 1"
-              class="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all"
-              :style="{
-                background: hasSelected ? 'var(--accent)' : 'var(--surface-raised)',
-                color: hasSelected ? 'white' : 'var(--text-tertiary)',
-                opacity: hasSelected ? '1' : '0.5',
-                cursor: hasSelected ? 'pointer' : 'not-allowed',
-              }"
-              :disabled="!hasSelected"
-              @click="handleAllow"
-            >
-              Submit
-            </button>
-          </template>
-          <template v-else>
-            <button
-              class="px-3 py-1.5 rounded-lg text-[12px] font-medium hover:opacity-90 transition-all"
-              style="background: var(--accent); color: white;"
-              @click="handleAllow"
-            >
-              Allow
-            </button>
-          </template>
+      <!-- Footer: action buttons -->
+      <div
+        class="flex items-center gap-2 px-4 py-3"
+        style="border-top: 1px solid var(--border-subtle); background: var(--surface-raised);"
+      >
+        <!-- AskUserQuestion: submit button -->
+        <template v-if="isAskUserQuestion && askUserQuestions">
           <button
-            class="px-3 py-1.5 rounded-lg text-[12px] font-medium hover:opacity-90 transition-all"
-            style="background: rgba(239,68,68,0.1); color: #ef4444;"
+            v-if="askUserQuestions.some(q => q.multiSelect) || askUserQuestions.length > 1"
+            class="flex-1 py-2 rounded-xl text-[12px] font-semibold transition-all"
+            :style="{
+              background: hasSelected ? 'var(--accent)' : 'var(--surface-base)',
+              color: hasSelected ? '#000' : 'var(--text-tertiary)',
+              opacity: hasSelected ? '1' : '0.5',
+              cursor: hasSelected ? 'pointer' : 'not-allowed',
+            }"
+            :disabled="!hasSelected"
+            @click="handleAllow"
+          >
+            Submit
+          </button>
+        </template>
+
+        <!-- Regular allow/deny -->
+        <template v-else>
+          <button
+            class="allow-btn flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-semibold transition-all"
+            style="background: var(--accent); color: #000;"
+            @click="handleAllow"
+          >
+            <UIcon name="i-lucide-check" class="size-3.5" />
+            Allow
+          </button>
+          <button
+            class="deny-btn flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all"
+            style="background: rgba(239,68,68,0.08); color: #ef4444; border: 1px solid rgba(239,68,68,0.2);"
             @click="handleDeny"
           >
+            <UIcon name="i-lucide-x" class="size-3.5" />
             Deny
           </button>
-        </div>
+        </template>
       </div>
+
     </div>
   </div>
 </template>
+
+<style scoped>
+.permission-card {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.allow-btn:hover {
+  filter: brightness(1.08);
+}
+
+.deny-btn:hover {
+  background: rgba(239, 68, 68, 0.14) !important;
+}
+
+.option-btn:hover:not(.option-selected) {
+  border-color: var(--border-default) !important;
+}
+</style>

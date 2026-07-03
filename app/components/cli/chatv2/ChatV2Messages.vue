@@ -296,9 +296,9 @@ function handleResend(content: string, images?: string[]) {
       </div>
     </div>
 
-    <!-- Streaming indicator when streaming but no text yet -->
+    <!-- Streaming indicator: only when the last group is NOT already an assistant group -->
     <div
-      v-if="isStreaming && messageGroups.length > 0 && !messageGroups[messageGroups.length - 1]?.messages.some(m => m.isStreaming)"
+      v-if="isStreaming && (messageGroups.length === 0 || messageGroups[messageGroups.length - 1]?.role !== 'assistant')"
       class="flex items-start gap-2 md:gap-3"
     >
       <!-- Claude Avatar -->
