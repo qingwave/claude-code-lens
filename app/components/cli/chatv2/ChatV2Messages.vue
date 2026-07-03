@@ -52,6 +52,64 @@ interface MessageGroup {
   messages: DisplayChatMessage[]
 }
 
+// Segments within an assistant group: either a single message or a batch of same-tool tool_use calls.
+// Batching applies to noisy read-only tools (Read/Glob/Grep) when 3+ consecutive calls of the same type occur.
+interface RenderSegment {
+  key: string
+  type: 'single' | 'batch'
+  toolName?: string       // set when type === 'batch'
+  messages: DisplayChatMessage[]
+}
+
+const BATCHABLE_TOOLS = new Set(['read', 'read_file', 'glob', 'glob_search', 'grep'])
+const BATCH_THRESHOLD = 3
+
+function batchableKey(msg: DisplayChatMessage): string | null {
+  if (msg.kind !== 'tool_use') return null
+  const tn = (msg.toolName || '').toLowerCase()
+  if (!BATCHABLE_TOOLS.has(tn)) return null
+  // Streaming tool_use with no input yet — don't batch until it settles
+  if (msg.isStreaming) return null
+  // Errors get their own card so they're not hidden inside a batch
+  if (msg.isError) return null
+  // Normalize read/read_file and glob/glob_search into a single batch key
+  if (tn === 'read' || tn === 'read_file') return 'read'
+  if (tn === 'glob' || tn === 'glob_search') return 'glob'
+  return tn
+}
+
+function computeSegments(messages: DisplayChatMessage[]): RenderSegment[] {
+  const segments: RenderSegment[] = []
+  let i = 0
+  while (i < messages.length) {
+    const current = messages[i]!
+    const key = batchableKey(current)
+    if (key) {
+      // Look ahead for a run of the same batchable key
+      let j = i
+      const run: DisplayChatMessage[] = []
+      while (j < messages.length && batchableKey(messages[j]!) === key) {
+        run.push(messages[j]!)
+        j++
+      }
+      if (run.length >= BATCH_THRESHOLD) {
+        segments.push({
+          key: `batch-${run[0]!.id}`,
+          type: 'batch',
+          toolName: run[0]!.toolName,
+          messages: run,
+        })
+        i = j
+        continue
+      }
+      // Fall through: below threshold, render each individually
+    }
+    segments.push({ key: current.id, type: 'single', messages: [current] })
+    i++
+  }
+  return segments
+}
+
 const messageGroups = computed<MessageGroup[]>(() => {
   const groups: MessageGroup[] = []
   let currentGroup: MessageGroup | null = null
@@ -184,15 +242,25 @@ function handleResend(content: string, images?: string[]) {
         </div>
 
         <div class="flex-1 min-w-0 overflow-wrap-anywhere">
-          <!-- Messages in this group -->
+          <!-- Messages in this group (with same-tool batching) -->
           <div class="space-y-2">
-            <template v-for="message in group.messages" :key="message.id">
+            <template v-for="segment in computeSegments(group.messages)" :key="segment.key">
+              <!-- Batched tool_use run (3+ consecutive same-tool calls) -->
+              <ChatV2ToolBatch
+                v-if="segment.type === 'batch'"
+                :messages="segment.messages"
+                :tool-name="segment.toolName!"
+                @open-file="handleOpenFile"
+              />
+
+              <!-- Single message -->
               <ChatV2MessageItem
-                :message="message"
+                v-else
+                :message="segment.messages[0]!"
                 :show-timestamp="false"
-                :group-timestamp="message.kind === 'complete' ? group.timestamp : undefined"
-                :group-copied="message.kind === 'complete' ? (copiedGroupId === group.id) : undefined"
-                :show-copy="message.kind === 'complete' && group.messages.some(m => m.kind === 'text' && m.content)"
+                :group-timestamp="segment.messages[0]!.kind === 'complete' ? group.timestamp : undefined"
+                :group-copied="segment.messages[0]!.kind === 'complete' ? (copiedGroupId === group.id) : undefined"
+                :show-copy="segment.messages[0]!.kind === 'complete' && group.messages.some(m => m.kind === 'text' && m.content)"
                 @permission-respond="handlePermissionRespond"
                 @prompt-respond="handlePromptRespond"
                 @open-file="handleOpenFile"
