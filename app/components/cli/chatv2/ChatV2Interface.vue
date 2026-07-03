@@ -2168,14 +2168,14 @@ function handleClosePreview() {
                 <template #controls>
                   <!-- Model Selector -->
                   <ChatV2ModelSelector
-                    v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
+                    v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && (isLiveChat || !!currentSessionId))"
                     v-model="selectedModel"
                     :options="MODEL_OPTIONS_CHAT"
                   />
 
                   <!-- Permission Mode Selector -->
                   <ChatV2PermissionModeSelector
-                    v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && isLiveChat)"
+                    v-if="(viewMode === 'history' && urlSessionId) || (viewMode === 'live' && (isLiveChat || !!currentSessionId))"
                     v-model="selectedPermissionMode"
                     :options="permissionModeOptions"
                   />
