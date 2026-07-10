@@ -1,9 +1,9 @@
 {
-  "name": "agents-ui",
+  "name": "cclens",
   "private": true,
   "type": "module",
   "bin": {
-    "agents-ui": "./bin/start.mjs"
+    "cclens": "./bin/start.mjs"
   },
   "scripts": {
     "build": "nuxt build",
