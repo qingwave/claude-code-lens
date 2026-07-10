@@ -291,7 +291,7 @@ watch(() => current.value?.id, () => { showDiff.value = false })
       <!-- Footer: action buttons -->
       <div
         class="flex items-center gap-2 px-4 py-3"
-        style="border-top: 1px solid var(--border-subtle); background: var(--surface-raised);"
+        style="background: var(--surface-raised);"
       >
         <!-- AskUserQuestion: submit button -->
         <template v-if="isAskUserQuestion && askUserQuestions">

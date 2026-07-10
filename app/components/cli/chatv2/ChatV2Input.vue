@@ -241,7 +241,7 @@ onMounted(async () => {
 
     <!-- Input container (images live inside now) -->
     <div
-      class="relative rounded-3xl transition-all duration-200 backdrop-blur-lg"
+      class="relative rounded-2xl transition-all duration-200 backdrop-blur-lg"
       :style="{
         background: 'var(--surface-glass)',
         border: isFocused
@@ -253,7 +253,7 @@ onMounted(async () => {
       }"
     >
       <!-- Attached images (inside box, above textarea) -->
-      <div v-if="attachedImages.length > 0" class="flex gap-2 px-3 pt-2.5 pb-2 overflow-x-auto" style="border-bottom: 1px solid var(--border-subtle);">
+      <div v-if="attachedImages.length > 0" class="flex gap-2 px-4 pt-3 pb-2 overflow-x-auto" style="border-bottom: 1px solid var(--border-subtle);">
         <div v-for="(img, idx) in attachedImages" :key="idx" class="relative shrink-0">
           <img :src="img.url" class="h-14 w-14 object-cover rounded-lg border" style="border-color: var(--border-subtle);" />
           <button
@@ -267,7 +267,7 @@ onMounted(async () => {
       </div>
 
       <!-- Textarea row -->
-      <div class="flex items-center gap-2 px-3 pt-2.5 pb-1.5">
+      <div class="flex items-center gap-2 px-4 pt-3 pb-2.5">
         <!-- Char count badge (absolute, shown when >= 8000) -->
         <Transition name="char-count">
           <span
