@@ -58,14 +58,30 @@ async function countProjectsAndSessions(): Promise<{ projects: number; sessions:
 }
 
 async function countMemoryFiles(): Promise<number> {
-  const memoryDir = resolveClaudePath('memory')
+  let total = 0
+
+  // Global memory: ~/.claude/memory/*.md
+  const globalDir = resolveClaudePath('memory')
   try {
-    await fs.access(memoryDir)
-    const files = await fs.readdir(memoryDir)
-    return files.filter(f => f.endsWith('.md')).length
-  } catch {
-    return 0
-  }
+    await fs.access(globalDir)
+    const files = await fs.readdir(globalDir)
+    total += files.filter(f => f.endsWith('.md') && f !== 'MEMORY.md').length
+  } catch {}
+
+  // Per-project memory: ~/.claude/projects/*/memory/*.md
+  const projectsDir = resolveClaudePath('projects')
+  try {
+    const projects = await fs.readdir(projectsDir, { withFileTypes: true })
+    await Promise.all(projects.filter(e => e.isDirectory()).map(async (proj) => {
+      const memDir = join(projectsDir, proj.name, 'memory')
+      try {
+        const files = await fs.readdir(memDir)
+        total += files.filter(f => f.endsWith('.md') && f !== 'MEMORY.md').length
+      } catch {}
+    }))
+  } catch {}
+
+  return total
 }
 
 export default defineEventHandler(async (): Promise<ActivityStats> => {
