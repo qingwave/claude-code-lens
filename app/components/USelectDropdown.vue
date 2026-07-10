@@ -15,110 +15,101 @@ const emit = defineEmits<{
 }>()
 
 const isOpen = ref(false)
-const dropdownRef = ref<HTMLElement | null>(null)
+const triggerRef = ref<HTMLElement | null>(null)
+const dropdownStyle = ref<Record<string, string>>({})
 
-const selectedOption = computed(() => {
-  return props.options.find((o) => o.value === props.modelValue)
-})
+const selectedOption = computed(() => props.options.find(o => o.value === props.modelValue))
 
 function selectOption(value: string | undefined) {
   emit('update:modelValue', value)
   isOpen.value = false
 }
 
-// Close on click outside
-function handleClickOutside(e: MouseEvent) {
-  if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
+function openDropdown() {
+  if (!triggerRef.value) return
+  const rect = triggerRef.value.getBoundingClientRect()
+  const spaceBelow = window.innerHeight - rect.bottom
+  const estimatedHeight = Math.min(props.options.length * 52 + 8, 320)
+  const showAbove = spaceBelow < estimatedHeight + 8 && rect.top > estimatedHeight + 8
+
+  dropdownStyle.value = {
+    position: 'fixed',
+    left: rect.left + 'px',
+    width: rect.width + 'px',
+    zIndex: '9999',
+    ...(showAbove
+      ? { bottom: (window.innerHeight - rect.top + 4) + 'px' }
+      : { top: (rect.bottom + 4) + 'px' }),
+  }
+  isOpen.value = true
+}
+
+function handleMouseDown(e: MouseEvent) {
+  if (triggerRef.value && !triggerRef.value.contains(e.target as Node)) {
     isOpen.value = false
   }
 }
 
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
+onMounted(() => document.addEventListener('mousedown', handleMouseDown))
+onUnmounted(() => document.removeEventListener('mousedown', handleMouseDown))
 </script>
 
 <template>
-  <div ref="dropdownRef" class="relative inline-block w-full">
+  <div ref="triggerRef" class="relative w-full">
     <button
       type="button"
-      class="field-input flex items-center gap-2 text-left"
-      @click="isOpen = !isOpen"
+      class="field-input flex items-center gap-2 text-left w-full"
+      @click="isOpen ? (isOpen = false) : openDropdown()"
     >
       <UIcon v-if="icon" :name="icon" class="size-3.5 text-meta" />
-      <span 
+      <span
         class="flex-1 truncate"
-        :style="!selectedOption ? 'color: var(--text-disabled); font-family: var(--font-sans);' : ''"
+        :style="!selectedOption ? 'color: var(--text-disabled); font-family: var(--font-sans)' : ''"
       >
         {{ selectedOption?.label || placeholder || 'Select...' }}
       </span>
-      <UIcon
-        :name="isOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
-        class="size-3.5 text-meta"
-      />
+      <UIcon :name="isOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-3.5 text-meta" />
     </button>
 
-    <!-- Dropdown -->
-    <Transition name="dropdown">
-      <div
-        v-if="isOpen"
-        class="absolute top-full left-0 mt-1 w-full min-w-[200px] rounded-xl overflow-hidden z-50"
-        style="background: var(--surface-overlay); border: 1px solid var(--border-default); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px var(--border-subtle);"
-      >
-        <div class="py-1">
-          <button
-            v-for="option in options"
-            :key="String(option.value)"
-            type="button"
-            class="w-full px-3 py-2 text-left transition-all"
-            :style="{
-              background: option.value === modelValue ? 'var(--accent-muted)' : 'transparent',
-            }"
-            :class="option.value !== modelValue ? 'hover:bg-[var(--surface-hover)]' : ''"
-            @click="selectOption(option.value)"
-          >
-            <div class="flex items-center gap-2">
-              <UIcon
-                v-if="option.value === modelValue"
-                name="i-lucide-check"
-                class="size-3.5"
-                style="color: var(--accent);"
-              />
-              <span
-                v-else
-                class="size-3.5"
-              />
-              <span class="text-[12px] font-medium" style="color: var(--text-primary);">
-                {{ option.label }}
-              </span>
-            </div>
-            <div v-if="option.description" class="text-[10px] mt-0.5 ml-5.5" style="color: var(--text-secondary);">
-              {{ option.description }}
-            </div>
-          </button>
+    <Teleport to="body">
+      <Transition name="dropdown">
+        <div
+          v-if="isOpen"
+          :style="dropdownStyle"
+          class="rounded-xl overflow-hidden"
+          style="background: var(--surface-overlay); border: 1px solid var(--border-default); box-shadow: 0 4px 20px rgba(0,0,0,0.15)"
+        >
+          <div class="py-1 overflow-y-auto max-h-80">
+            <button
+              v-for="option in options"
+              :key="String(option.value)"
+              type="button"
+              class="w-full px-3 py-2 text-left transition-all hover-bg"
+              :style="{ background: option.value === modelValue ? 'var(--accent-muted)' : 'transparent' }"
+              @click="selectOption(option.value)"
+            >
+              <div class="flex items-center gap-2">
+                <UIcon
+                  v-if="option.value === modelValue"
+                  name="i-lucide-check"
+                  class="size-3.5 shrink-0"
+                  style="color: var(--accent)"
+                />
+                <span v-else class="size-3.5 shrink-0" />
+                <span class="text-[12px] font-medium" style="color: var(--text-primary)">{{ option.label }}</span>
+              </div>
+              <div v-if="option.description" class="text-[10px] mt-0.5 ml-5" style="color: var(--text-secondary)">
+                {{ option.description }}
+              </div>
+            </button>
+          </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
-.dropdown-enter-active,
-.dropdown-leave-active {
-  transition: all 0.15s ease;
-}
-
-.dropdown-enter-from {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-.dropdown-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
+.dropdown-enter-active, .dropdown-leave-active { transition: opacity 0.12s ease, transform 0.12s ease; }
+.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-4px); }
 </style>
