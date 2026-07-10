@@ -49,6 +49,8 @@ const deleting = ref(false)
 const apiBase = computed(() =>
   props.projectName ? `/api/projects/${props.projectName}/memory` : '/api/memory'
 )
+
+async function loadFiles() {
   loading.value = true
   try {
     files.value = await $fetch<MemoryFileMeta[]>(apiBase.value)

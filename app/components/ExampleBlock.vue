@@ -9,7 +9,7 @@ const open = ref(false)
 <template>
   <div
     class="rounded-lg overflow-hidden"
-    style="border-left: 3px solid var(--accent); background: var(--surface-raised);"
+    style="background: var(--surface-raised);"
   >
     <button
       class="w-full flex items-center gap-2 px-4 py-2.5 text-left"

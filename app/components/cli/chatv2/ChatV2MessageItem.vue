@@ -575,7 +575,7 @@ function informationalStyle(level?: string): Record<string, string> {
       <div
         v-if="showThinking"
         class="mt-2 p-2 md:p-3 rounded-lg text-[11px] md:text-[12px] whitespace-pre-wrap break-words"
-        style="background: var(--surface-raised); color: var(--text-tertiary); border-left: 2px solid #8b5cf6;"
+        style="background: var(--surface-raised); color: var(--text-tertiary);"
       >
         {{ message.thinking || message.content }}
       </div>
@@ -808,7 +808,7 @@ function informationalStyle(level?: string): Record<string, string> {
           <div
             v-if="showAgentPrompt && renderedAgentPrompt"
             class="mt-2 p-3 rounded-lg text-[12px] break-words"
-            style="background: var(--surface-raised); border-left: 2px solid #f59e0b;"
+            style="background: var(--surface-raised);"
           >
             <div
               class="prose prose-sm max-w-none leading-relaxed"
