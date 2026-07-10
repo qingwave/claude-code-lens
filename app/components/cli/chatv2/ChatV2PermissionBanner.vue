@@ -22,8 +22,8 @@ function handleClick() {
 <template>
   <button
     v-if="permissions.length > 0"
-    class="shrink-0 w-full px-4 py-2 border-b flex items-center gap-2.5 text-left transition-colors hover:opacity-90"
-    style="background: rgba(229, 169, 62, 0.1); border-color: var(--accent);"
+    class="shrink-0 w-full px-4 py-2 flex items-center gap-2.5 text-left transition-colors hover:opacity-90"
+    style="background: rgba(229, 169, 62, 0.1);"
     @click="handleClick"
   >
     <UIcon name="i-lucide-shield-question" class="size-4 shrink-0" style="color: var(--accent);" />
