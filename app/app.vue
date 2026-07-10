@@ -102,15 +102,25 @@ function badgeFor(to: string) {
         <!-- Brand -->
         <div class="h-[56px] flex items-center gap-2.5 relative" :class="sidebarCollapsed ? 'justify-center px-2' : 'px-4'">
           <NuxtLink to="/cli" class="flex items-center gap-2.5 flex-1 min-w-0 group/brand" v-if="!sidebarCollapsed">
-            <div
-              class="size-7 rounded-lg flex items-center justify-center relative shrink-0 transition-transform duration-200 group-hover/brand:scale-105"
-              style="border: 1px solid var(--border-default);"
-            >
-              <UIcon name="i-lucide-bot" class="size-3.5" style="color: var(--accent);" />
-            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 512 512" class="shrink-0 transition-transform duration-200 group-hover/brand:scale-105">
+              <defs>
+                <clipPath id="canvas-clip-a">
+                  <rect width="512" height="512" rx="112" ry="112"/>
+                </clipPath>
+              </defs>
+              <rect width="512" height="512" rx="112" ry="112" :fill="colorMode.value === 'dark' ? '#1a1a1f' : '#FFFFFF'" clip-path="url(#canvas-clip-a)"/>
+              <g clip-path="url(#canvas-clip-a)">
+                <g transform="translate(51 51) scale(17.083333333333332 17.083333333333332)">
+                  <g fill="none" stroke="#E8895B" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="m14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83m13.79-4l-5.74 9.94"/>
+                  </g>
+                </g>
+              </g>
+            </svg>
             <div class="flex-1 flex flex-col min-w-0">
               <span class="text-[12px] font-semibold tracking-tight group-hover/brand:text-accent transition-colors" style="color: var(--text-primary); font-family: var(--font-display);">
-                Agent Manager
+                CCLens
               </span>
               <span class="text-[9px] font-mono tracking-wider uppercase" style="color: var(--text-disabled);">
                 Claude Code
@@ -120,12 +130,26 @@ function badgeFor(to: string) {
           <!-- Collapsed: clicking the icon expands the sidebar -->
           <button
             v-else
-            class="size-7 rounded-lg flex items-center justify-center relative shrink-0 transition-all duration-150 focus-ring press-scale"
-            style="border: 1px solid var(--border-default);"
+            class="shrink-0 transition-all duration-150 focus-ring press-scale"
             title="Expand sidebar"
             @click="sidebarCollapsed = false"
           >
-            <UIcon name="i-lucide-bot" class="size-3.5" style="color: var(--accent);" />
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 512 512">
+              <defs>
+                <clipPath id="canvas-clip-b">
+                  <rect width="512" height="512" rx="112" ry="112"/>
+                </clipPath>
+              </defs>
+              <rect width="512" height="512" rx="112" ry="112" :fill="colorMode.value === 'dark' ? '#1a1a1f' : '#FFFFFF'" clip-path="url(#canvas-clip-b)"/>
+              <g clip-path="url(#canvas-clip-b)">
+                <g transform="translate(51 51) scale(17.083333333333332 17.083333333333332)">
+                  <g fill="none" stroke="#E8895B" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="m14.31 8l5.74 9.94M9.69 8h11.48M7.38 12l5.74-9.94M9.69 16L3.95 6.06M14.31 16H2.83m13.79-4l-5.74 9.94"/>
+                  </g>
+                </g>
+              </g>
+            </svg>
           </button>
           <!-- Collapse toggle — only shown when expanded -->
           <button
