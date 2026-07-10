@@ -77,7 +77,7 @@ async function finishOnboarding() {
 
         <div class="space-y-2">
           <h2 class="text-[20px] font-semibold tracking-tight" style="font-family: var(--font-sans);">
-            Welcome to Agent Manager
+            Welcome to Claude Code Lens
           </h2>
           <p class="text-[13px] text-label leading-relaxed max-w-sm mx-auto">
             Create AI assistants that work for you. We'll help you get set up in just a minute.

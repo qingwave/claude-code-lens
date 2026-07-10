@@ -40,10 +40,10 @@ function finish() {
 
         <div class="space-y-2">
           <h2 class="text-[24px] font-semibold tracking-tight" style="font-family: var(--font-display);">
-            Set up Agent Manager
+            Set up Claude Code Lens
           </h2>
           <p class="text-[13px] text-label leading-relaxed max-w-sm mx-auto">
-            Agent Manager needs a folder to store your agents, commands, and skills. This is the same folder Claude Code uses.
+            Claude Code Lens needs a folder to store your agents, commands, and skills. This is the same folder Claude Code uses.
           </p>
         </div>
 

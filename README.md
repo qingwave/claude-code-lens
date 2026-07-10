@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="docs/assets/header.png" alt="agents-ui — visualize your Claude Code" width="720" />
+  <img src="docs/assets/header.png" alt="Claude Code Lens — visualize your Claude Code" width="720" />
 </p>
 
-<h1 align="center">Claude Code CLI UI <br/>
-  (aka Claude Code Agents Management Studio)</h1>
+<h1 align="center">Claude Code Lens (CCLens)<br/>
+  <sub>Visual dashboard for Claude Code agents, sessions & configs</sub></h1>
 
 <p align="center">
   <a href="#quickstart"><strong>Quickstart</strong></a> &middot;
@@ -24,13 +24,13 @@
 
 <br/>
 
-## What is agents-ui?
+## What is Claude Code Lens?
 
 # Open-source visual orchestration for Claude Code
 
-**If Claude Code is the _engine_, agents-ui is the _dashboard_**
+**If Claude Code is the _engine_, CCLens is the _dashboard_**
 
-agents-ui is a Nuxt 3-based visual dashboard for managing Claude Code agents, commands, skills, workflows, and plugins. It provides a GUI layer on top of the `~/.claude` directory, allowing users to create, edit, and organize their Claude Code configuration without touching markdown files directly.
+Claude Code Lens is a Nuxt 3-based visual dashboard for managing Claude Code agents, commands, skills, workflows, and plugins. It provides a GUI layer on top of the `~/.claude` directory, allowing users to create, edit, and organize their Claude Code configuration without touching markdown files directly.
 
 It looks like a studio — but under the hood it has relationship graphs, real-time metrics, visual workflow builders, and terminal emulation.
 
@@ -44,7 +44,7 @@ It looks like a studio — but under the hood it has relationship graphs, real-t
 
 <br/>
 
-> **COMING SOON: Desktop App** — Run agents-ui as a standalone desktop application for even tighter integration with your local environment.
+> **COMING SOON: Desktop App** — Run CCLens as a standalone desktop application for even tighter integration with your local environment.
 
 <br/>
 
@@ -67,7 +67,7 @@ It looks like a studio — but under the hood it has relationship graphs, real-t
 
 <br/>
 
-## agents-ui is right for you if
+## CCLens is right for you if
 
 - ✅ You want a **visual way to manage** your Claude Code agents
 - ✅ You **coordinate many different commands and skills** and want to see how they connect
@@ -127,9 +127,9 @@ Browse and import community agent templates and marketplace resources instantly.
 
 <br/>
 
-## Problems agents-ui solves
+## Problems CCLens solves
 
-| Without agents-ui                                                                                                                     | With agents-ui                                                                                                                         |
+| Without CCLens                                                                                                                     | With CCLens                                                                                                                         |
 | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | ❌ You edit scattered markdown files in `~/.claude` and lose track of which agent uses which skill.                                    | ✅ A single visual control layer shows you exactly how everything connects with relationship graphs.                                  |
 | ❌ You have no visibility into how many tokens you're using or what the actual cost of a session is until it's over.                  | ✅ Real-time metrics surface token usage and costs as they happen, helping you stay within budget.                                     |
@@ -139,9 +139,9 @@ Browse and import community agent templates and marketplace resources instantly.
 
 <br/>
 
-## Why agents-ui is special
+## Why CCLens is special
 
-agents-ui handles the visual orchestration of Claude Code correctly.
+CCLens handles the visual orchestration of Claude Code correctly.
 
 |                                   |                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -154,14 +154,14 @@ agents-ui handles the visual orchestration of Claude Code correctly.
 
 <br/>
 
-## What agents-ui is not
+## What CCLens is not
 
 |                              |                                                                                                                      |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | **Not a replacement for CLI.**| It's a GUI *companion*. You can still use the Claude CLI alongside it whenever you want.                             |
-| **Not an LLM provider.**     | We don't provide models. agents-ui uses your existing Anthropic API keys and Claude Code setup.                      |
+| **Not an LLM provider.**     | We don't provide models. CCLens uses your existing Anthropic API keys and Claude Code setup.                      |
 | **Not a general-purpose IDE.**| It's specifically optimized for the Claude Code ecosystem and `.claude` configurations.                              |
-| **Not a hosted service.**     | agents-ui runs locally on your machine for maximum privacy and access to your local files.                           |
+| **Not a hosted service.**     | CCLens runs locally on your machine for maximum privacy and access to your local files.                           |
 
 <br/>
 
@@ -176,7 +176,7 @@ bun install
 bun run dev
 ```
 
-Open **http://localhost:3000** — agents-ui will automatically load your `~/.claude` setup.
+Open **http://localhost:3000** — CCLens will automatically load your `~/.claude` setup.
 
 > **Requirements:** [Bun](https://bun.sh) (recommended) or Node.js 18+
 
@@ -185,13 +185,13 @@ Open **http://localhost:3000** — agents-ui will automatically load your `~/.cl
 ## FAQ
 
 **Where is my data stored?**
-Everything is stored in your standard `~/.claude` directory. agents-ui reads and writes directly to those files.
+Everything is stored in your standard `~/.claude` directory. CCLens reads and writes directly to those files.
 
 **Do I need a separate Anthropic API key?**
-agents-ui uses the same environment variables as your Claude Code setup. If `anthropic` is configured in your shell, agents-ui will find it.
+CCLens uses the same environment variables as your Claude Code setup. If `anthropic` is configured in your shell, CCLens will find it.
 
 **Can I still use the CLI?**
-Yes! agents-ui is a companion. Changes you make in the UI reflect in your `.claude` files immediately, and vice versa.
+Yes! CCLens is a companion. Changes you make in the UI reflect in your `.claude` files immediately, and vice versa.
 
 **How does the relationship graph work?**
 It scans your agent, command, and skill files for references to each other (like `agent:` in frontmatter or `/command` in text) and builds the graph dynamically.
@@ -242,7 +242,7 @@ We welcome contributions! See the [CONTRIBUTING.md](CONTRIBUTING.md) for details
 
 ## License
 
-MIT &copy; 2026 Ngxba, agents-ui contributors
+MIT &copy; 2026 Ngxba, CCLens contributors
 
 <br/>
 
