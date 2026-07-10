@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { getAgentColor } from "~/utils/colors";
-import { getModelBadgeClasses } from "~/utils/models";
+import { getModelBadgeClasses, getModelColor, MODEL_IDS, MODEL_META, DEFAULT_MODEL } from "~/utils/models";
 
 const { claudeDir, set: setDir } = useClaudeDir();
 const { agents, fetchAll: fetchAgents } = useAgents();
@@ -14,12 +14,28 @@ const dirInput = ref("");
 const settingDir = ref(false);
 
 interface Suggestion {
-  type: string;
+  type: 'missing-skill' | 'missing-description' | 'empty-body' | 'orphan-skill' | string;
   severity: "warning" | "info";
   message: string;
   target: { type: "agent" | "command" | "skill"; slug: string };
 }
 const suggestions = ref<Suggestion[]>([]);
+
+const suggestionWarnings = computed(() => suggestions.value.filter(s => s.severity === 'warning'))
+const suggestionInfos = computed(() => suggestions.value.filter(s => s.severity === 'info'))
+
+const SUGGESTION_META: Record<string, { icon: string; action: string; color: string; colorRaw: string }> = {
+  'empty-body':            { icon: 'i-lucide-file-x',   action: 'Add instructions', color: 'var(--error)',            colorRaw: '#dc2626' },
+  'missing-description':   { icon: 'i-lucide-text',     action: 'Add description',  color: 'var(--warning)',          colorRaw: '#d97706' },
+  'missing-skill':         { icon: 'i-lucide-puzzle',   action: 'Link a skill',     color: 'var(--warning)',          colorRaw: '#d97706' },
+  'orphan-skill':          { icon: 'i-lucide-unlink',   action: 'Assign to agent',  color: 'var(--accent-secondary)', colorRaw: '#6366f1' },
+}
+
+const TARGET_META: Record<string, { icon: string; color: string; bg: string }> = {
+  agent:   { icon: 'i-lucide-bot',      color: 'var(--accent-secondary)', bg: 'rgba(99,102,241,0.12)' },
+  command: { icon: 'i-lucide-terminal', color: 'var(--accent)',           bg: 'rgba(180,83,9,0.12)'   },
+  skill:   { icon: 'i-lucide-puzzle',   color: 'var(--success)',          bg: 'rgba(5,150,105,0.12)'  },
+}
 
 // Animated counters
 const animatedCounts = reactive({
@@ -213,6 +229,16 @@ const statItems = computed(() => [
     icon: "i-lucide-puzzle",
   },
 ]);
+
+// Agent model distribution for stats strip
+const agentModelStats = computed(() =>
+  MODEL_IDS.filter(id => id !== DEFAULT_MODEL).map(id => ({
+    id,
+    label: MODEL_META[id].label,
+    color: getModelColor(id),
+    count: agents.value.filter(a => (a.frontmatter.model ?? DEFAULT_MODEL) === id).length,
+  })).filter(s => s.count > 0)
+)
 </script>
 
 <template>
@@ -262,31 +288,57 @@ const statItems = computed(() => [
       <div v-if="hasContent" class="mb-6">
         <p class="text-[11px] font-semibold uppercase tracking-widest mb-1.5 px-0.5" style="color: var(--text-disabled)">Assets</p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <!-- Agents list (takes 2 cols) -->
-        <div
-          class="md:col-span-2 rounded-xl overflow-hidden"
-          style="border: 1px solid var(--border-subtle)"
-        >
-          <div
-            class="flex items-center justify-between px-4 py-3"
-            style="background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);"
-          >
-            <h3 class="text-section-title flex items-center gap-2">
-              <UIcon name="i-lucide-cpu" class="size-4" style="color: var(--accent)" />
-              Agents
-            </h3>
+        <!-- Agents card (takes 2 cols) — Activity pattern -->
+        <div class="md:col-span-2 rounded-xl overflow-hidden bg-card">
+          <!-- Header -->
+          <div class="flex items-center justify-between px-4 py-3" style="border-bottom: 1px solid var(--border-subtle)">
+            <div class="flex items-center gap-2">
+              <UIcon name="i-lucide-cpu" class="size-3.5" style="color: var(--accent)" />
+              <span class="text-section-title">Agents</span>
+              <span
+                class="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                style="background: var(--surface-overlay); color: var(--text-disabled)"
+              >{{ agents.length }}</span>
+            </div>
             <NuxtLink
               to="/agents"
-              class="text-[12px] focus-ring rounded px-1.5 py-0.5 hover-bg transition-colors"
+              class="text-[12px] focus-ring rounded-lg px-1.5 py-0.5 hover-bg transition-colors"
               style="color: var(--accent)"
             >View all</NuxtLink>
           </div>
-          <div class="divide-y" style="divide-color: var(--border-subtle)">
+
+          <!-- Stats strip — non-default model distribution -->
+          <div
+            v-if="agentModelStats.length"
+            class="grid"
+            :style="`grid-template-columns: repeat(${agentModelStats.length}, 1fr); border-bottom: 1px solid rgba(0,0,0,0.028)`"
+          >
+            <!-- Per-model counts only -->
+            <div
+              v-for="(s, i) in agentModelStats"
+              :key="s.id"
+              class="flex flex-col items-center justify-center py-3 gap-0.5"
+              :style="i < agentModelStats.length - 1 ? 'border-right: 1px solid rgba(0,0,0,0.028)' : ''"
+            >
+              <div class="flex items-center gap-1">
+                <div class="size-1.5 rounded-full shrink-0" :style="{ background: s.color }" />
+                <span class="text-[10px] text-meta">{{ s.label }}</span>
+              </div>
+              <span
+                class="text-[18px] font-bold tabular-nums leading-none"
+                style="font-family: var(--font-display); letter-spacing: -0.03em"
+                :style="{ color: s.color }"
+              >{{ s.count }}</span>
+            </div>
+          </div>
+
+          <!-- Agent rows -->
+          <div class="divide-y" style="divide-color: rgba(0,0,0,0.028)">
             <NuxtLink
               v-for="agent in agents.slice(0, 6)"
               :key="agent.slug"
               :to="`/agents/${agent.slug}`"
-              class="flex items-center gap-3 px-4 py-3 hover-bg group"
+              class="flex items-center gap-3 px-4 py-3 group transition-colors hover:bg-black/[0.025]"
             >
               <div
                 class="size-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105"
@@ -302,9 +354,10 @@ const statItems = computed(() => [
                 <span v-if="agent.frontmatter.description" class="text-[11px] text-label truncate block">
                   {{ agent.frontmatter.description }}
                 </span>
+                <span v-else class="text-[11px] text-meta truncate block italic">No description</span>
               </div>
               <span
-                v-if="agent.frontmatter.model && getModelBadgeClasses(agent.frontmatter.model)"
+                v-if="agent.frontmatter.model"
                 class="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-full shrink-0"
                 :class="[getModelBadgeClasses(agent.frontmatter.model).bg, getModelBadgeClasses(agent.frontmatter.model).text]"
               >{{ agent.frontmatter.model }}</span>
@@ -324,7 +377,7 @@ const statItems = computed(() => [
                 <UIcon name="i-lucide-terminal" class="size-4" style="color: var(--accent)" />
                 Commands
               </h3>
-              <NuxtLink to="/commands" class="text-[12px] focus-ring rounded px-1.5 py-0.5 hover-bg transition-colors" style="color: var(--accent)">View all</NuxtLink>
+              <NuxtLink to="/commands" class="text-[12px] focus-ring rounded-lg px-1.5 py-0.5 hover-bg transition-colors" style="color: var(--accent)">View all</NuxtLink>
             </div>
             <div class="divide-y" style="divide-color: var(--border-subtle)">
               <NuxtLink
@@ -391,36 +444,63 @@ const statItems = computed(() => [
       />
 
       <!-- Suggestions -->
-      <div
-        v-if="suggestions.length && hasContent"
-        class="rounded-xl overflow-hidden"
-        style="border: 1px solid var(--border-subtle)"
-      >
-        <div
-          class="flex items-center justify-between px-4 py-3"
-          style="background: var(--surface-raised); border-bottom: 1px solid var(--border-subtle);"
-        >
-          <h3 class="text-section-title flex items-center gap-2">
-            <UIcon name="i-lucide-lightbulb" class="size-4" style="color: var(--accent)" />
-            Suggestions
-          </h3>
-          <span class="font-mono text-[10px] text-meta">{{ suggestions.length }}</span>
+      <div v-if="suggestions.length && hasContent" class="mb-6">
+        <div class="flex items-center justify-between mb-1.5 px-0.5">
+          <p class="text-[11px] font-semibold uppercase tracking-widest" style="color: var(--text-disabled)">Suggestions</p>
+          <div class="flex items-center gap-1.5">
+            <span
+              v-if="suggestionWarnings.length"
+              class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+              style="background: var(--error); color: #fff"
+            >{{ suggestionWarnings.length }} issue{{ suggestionWarnings.length > 1 ? 's' : '' }}</span>
+            <span
+              v-if="suggestionInfos.length"
+              class="text-[10px] font-medium px-2 py-0.5 rounded-full"
+              style="background: var(--badge-subtle-bg); color: var(--text-tertiary)"
+            >{{ suggestionInfos.length }} tip{{ suggestionInfos.length > 1 ? 's' : '' }}</span>
+          </div>
         </div>
-        <div class="divide-y" style="divide-color: var(--border-subtle)">
+        <div class="space-y-2">
           <NuxtLink
-            v-for="(s, idx) in suggestions.slice(0, 5)"
+            v-for="(s, idx) in [...suggestionWarnings, ...suggestionInfos].slice(0, 6)"
             :key="idx"
             :to="`/${s.target.type}s/${s.target.slug}`"
-            class="flex items-center gap-3 px-4 py-3 hover-bg group"
+            class="flex items-center gap-3 rounded-xl p-3.5 focus-ring hover-card bg-card group"
           >
-            <UIcon
-              :name="s.severity === 'warning' ? 'i-lucide-alert-triangle' : 'i-lucide-info'"
-              class="size-4 shrink-0"
-              :style="{ color: s.severity === 'warning' ? 'var(--warning, #eab308)' : 'var(--text-disabled)' }"
-            />
-            <span class="text-[12px] text-label flex-1">{{ s.message }}</span>
-            <UIcon name="i-lucide-chevron-right" class="size-3.5 text-meta opacity-0 group-hover:opacity-100 transition-opacity" />
+            <!-- Icon block — same pattern as Quick Actions -->
+            <div
+              class="size-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105"
+              :style="{
+                background: (SUGGESTION_META[s.type]?.colorRaw ?? '#82828e') + '20',
+                border: '1px solid ' + (SUGGESTION_META[s.type]?.colorRaw ?? '#82828e') + '30',
+              }"
+            >
+              <UIcon
+                :name="SUGGESTION_META[s.type]?.icon ?? 'i-lucide-info'"
+                class="size-3.5"
+                :style="{ color: SUGGESTION_META[s.type]?.color ?? 'var(--text-tertiary)' }"
+              />
+            </div>
+            <!-- Text -->
+            <div class="flex-1 min-w-0">
+              <p class="text-[12px] font-medium truncate" style="color: var(--text-primary)">{{ s.message }}</p>
+              <p class="text-[11px] mt-0.5 truncate" :style="{ color: SUGGESTION_META[s.type]?.color ?? 'var(--text-tertiary)' }">
+                {{ SUGGESTION_META[s.type]?.action ?? 'View' }}
+              </p>
+            </div>
+            <!-- Target badge -->
+            <span
+              class="shrink-0 flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
+              :style="{ background: TARGET_META[s.target.type]?.bg, color: TARGET_META[s.target.type]?.color }"
+            >
+              <UIcon :name="TARGET_META[s.target.type]?.icon ?? 'i-lucide-box'" class="size-2.5" />
+              {{ s.target.type }}
+            </span>
+            <UIcon name="i-lucide-arrow-right" class="size-4 text-meta opacity-0 group-hover:opacity-100 transition-all duration-200 group-hover:translate-x-0.5 shrink-0" />
           </NuxtLink>
+          <p v-if="suggestions.length > 6" class="text-[11px] text-meta text-center pt-1">
+            +{{ suggestions.length - 6 }} more
+          </p>
         </div>
       </div>
 
