@@ -22,6 +22,14 @@
 
 <br/>
 
+<div align="center">
+  <img src="docs/cclens-dashboard.png" width="800" alt="CCLens Dashboard" />
+  <br/><br/>
+  <img src="docs/cclens-session.png" width="800" alt="CCLens Chat Session" />
+</div>
+
+<br/>
+
 ## What is Claude Code Lens?
 
 > This project is a fork of [claude-code-agents-ui](https://github.com/Ngxba/claude-code-agents-ui) originally created by [Ngxba](https://github.com/Ngxba).
