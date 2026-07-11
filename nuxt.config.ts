@@ -14,6 +14,13 @@ export default defineNuxtConfig({
     claudeCliPath: process.env.CLAUDE_CLI_PATH || '',
   },
 
+  vite: {
+    ssr: {
+      noExternal: [],
+      external: ['@xterm/xterm', '@xterm/addon-serialize', '@xterm/addon-web-links', '@xterm/addon-fit', '@xterm/addon-search'],
+    },
+  },
+
   nitro: {
     experimental: {
       websocket: true,

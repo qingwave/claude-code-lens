@@ -5,7 +5,7 @@ import { convertToDisplayMessages } from '~/utils/chatMessageConverter'
 import { convertClaudeCodeMessages } from '~/utils/claudeCodeMessageConverter'
 import type { DisplayChatMessage, PermissionMode } from '~/types'
 import { MODEL_OPTIONS_CHAT, DEFAULT_MODEL } from '~/utils/models'
-import ChatV2TerminalPane from '~/components/cli/chatv2/ChatV2TerminalPane.vue'
+import ChatV2TerminalPane from '~/components/cli/chatv2/ChatV2TerminalPane.client.vue'
 
 const props = defineProps<{
   executionOptions: {
