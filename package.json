@@ -44,7 +44,8 @@
     "@fontsource/geist-sans": "^5.2.5",
     "@iconify-json/lucide": "1.2.116",
     "@types/ws": "^8.18.1",
-    "typescript": "^5.7"
+    "typescript": "^5.9",
+    "vue-tsc": "^3.3.7"
   },
   "license": "MIT",
   "repository": {
