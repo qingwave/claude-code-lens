@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/qingwave/claude-code-lens/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a>
   <a href="https://github.com/qingwave/claude-code-lens/stargazers"><img src="https://img.shields.io/github/stars/qingwave/claude-code-lens" alt="Stars" /></a>
-  <a href="https://www.npmjs.com/package/cclens"><img src="https://img.shields.io/npm/v/cclens" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@qingwave/cclens"><img src="https://img.shields.io/npm/v/@qingwave/cclens" alt="npm version" /></a>
 </p>
 
 <br/>
