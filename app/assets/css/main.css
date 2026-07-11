@@ -1,5 +1,18 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+@import "@fontsource/geist-sans/400.css";
+@import "@fontsource/geist-sans/500.css";
+@import "@fontsource/geist-sans/600.css";
+@import "@fontsource/geist-sans/700.css";
+@import "@fontsource/geist-mono/400.css";
+@import "@fontsource/geist-mono/500.css";
+
+@font-face {
+  font-family: 'Clash Display';
+  src: url('/fonts/ClashDisplay-Variable.woff2') format('woff2');
+  font-weight: 400 700;
+  font-display: swap;
+}
 
 /* ── xterm.js terminal overrides ── */
 .shell-terminal,

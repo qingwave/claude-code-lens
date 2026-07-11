@@ -1,16 +1,22 @@
 {
   "name": "cclens",
-  "private": true,
+  "version": "0.1.0",
+  "description": "A visual dashboard for Claude Code — browse and edit agents, commands, skills, and workflows without touching config files.",
   "type": "module",
   "bin": {
     "cclens": "./bin/start.mjs"
   },
+  "files": [
+    "bin/",
+    ".output/"
+  ],
   "scripts": {
-    "build": "nuxt build",
+    "build": "nuxt build && node -e \"import('node:fs').then(fs => fs.rmSync('.output/server/node_modules/node-pty', {recursive:true, force:true}))\"",
+    "prepublishOnly": "nuxt build && node -e \"import('node:fs').then(fs => fs.rmSync('.output/server/node_modules/node-pty', {recursive:true, force:true}))\"",
     "dev": "nuxt dev --port 3030",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare && chmod +x node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper 2>/dev/null || true",
+    "prepare": "nuxt prepare",
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
@@ -34,8 +40,27 @@
     "yaml": "^2.6"
   },
   "devDependencies": {
+    "@fontsource/geist-mono": "^5.2.8",
+    "@fontsource/geist-sans": "^5.2.5",
     "@iconify-json/lucide": "^1.2.95",
     "@types/ws": "^8.18.1",
     "typescript": "^5.7"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qingwave/claude-code-lens.git"
+  },
+  "homepage": "https://github.com/qingwave/claude-code-lens",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "agents",
+    "dashboard",
+    "ui",
+    "nuxt"
+  ],
+  "engines": {
+    "node": ">=18"
   }
 }
