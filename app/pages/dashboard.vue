@@ -333,12 +333,13 @@ const agentModelStats = computed(() =>
           </div>
 
           <!-- Agent rows -->
-          <div class="divide-y" style="divide-color: rgba(0,0,0,0.028)">
+          <div>
             <NuxtLink
               v-for="agent in agents.slice(0, 6)"
               :key="agent.slug"
               :to="`/agents/${agent.slug}`"
               class="flex items-center gap-3 px-4 py-3 group transition-colors hover:bg-black/[0.025]"
+              style="border-top: 1px solid rgba(0,0,0,0.028)"
             >
               <div
                 class="size-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105"
