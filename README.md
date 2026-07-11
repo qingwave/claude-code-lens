@@ -4,13 +4,14 @@
 
 <p align="center">
   <a href="#quickstart"><strong>Quickstart</strong></a> &middot;
-  <a href="https://github.com/Ngxba/claude-code-agents-ui/blob/main/CONTRIBUTING.md"><strong>Contributing</strong></a> &middot;
-  <a href="https://github.com/Ngxba/claude-code-agents-ui"><strong>GitHub</strong></a>
+  <a href="https://github.com/qingwave/claude-code-lens/blob/main/CONTRIBUTING.md"><strong>Contributing</strong></a> &middot;
+  <a href="https://github.com/qingwave/claude-code-lens"><strong>GitHub</strong></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Ngxba/claude-code-agents-ui/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a>
-  <a href="https://github.com/Ngxba/claude-code-agents-ui/stargazers"><img src="https://img.shields.io/github/stars/Ngxba/claude-code-agents-ui" alt="Stars" /></a>
+  <a href="https://github.com/qingwave/claude-code-lens/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License" /></a>
+  <a href="https://github.com/qingwave/claude-code-lens/stargazers"><img src="https://img.shields.io/github/stars/qingwave/claude-code-lens" alt="Stars" /></a>
+  <a href="https://www.npmjs.com/package/cclens"><img src="https://img.shields.io/npm/v/cclens" alt="npm version" /></a>
 </p>
 
 <br/>
@@ -164,18 +165,29 @@ CCLens handles the visual orchestration of Claude Code correctly.
 
 ## Quickstart
 
-Open source. Self-hosted. Use your local Claude Code setup.
+### Install from npm (recommended)
 
 ```bash
-git clone https://github.com/Ngxba/claude-code-agents-ui.git
-cd claude-code-agents-ui
+npm install -g cclens
+cclens
+```
+
+Open **http://localhost:3030** — CCLens will automatically load your `~/.claude` setup.
+
+> **Requirements:** Node.js 22+
+
+### Run from source
+
+```bash
+git clone https://github.com/qingwave/claude-code-lens.git
+cd claude-code-lens
 bun install
 bun run dev
 ```
 
-Open **http://localhost:3000** — CCLens will automatically load your `~/.claude` setup.
+Open **http://localhost:3030**
 
-> **Requirements:** [Bun](https://bun.sh) (recommended) or Node.js 18+
+> **Requirements:** [Bun](https://bun.sh) and Node.js 22+
 
 <br/>
 
@@ -198,7 +210,7 @@ It scans your agent, command, and skill files for references to each other (like
 ## Development
 
 ```bash
-bun run dev          # Start dev server (Nuxt + SSE)
+bun run dev          # Start dev server at http://localhost:3030
 bun run build        # Build for production
 bun run preview      # Preview production build
 bun run typecheck    # Run TypeScript type checking
@@ -226,28 +238,24 @@ bun run typecheck    # Run TypeScript type checking
 
 We welcome contributions! See the [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-- [GitHub Issues](https://github.com/Ngxba/claude-code-agents-ui/issues) — bugs and feature requests
-- [GitHub Discussions](https://github.com/Ngxba/claude-code-agents-ui/discussions) — ideas and RFC
+- [GitHub Issues](https://github.com/qingwave/claude-code-lens/issues) — bugs and feature requests
+- [GitHub Discussions](https://github.com/qingwave/claude-code-lens/discussions) — ideas and RFC
 
 <br/>
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/image?repos=Ngxba/claude-code-agents-ui&type=date&legend=top-left)](https://star-history.com/#Ngxba/claude-code-agents-ui&Date)
+[![Star History Chart](https://api.star-history.com/image?repos=qingwave/claude-code-lens&type=date&legend=top-left)](https://star-history.com/#qingwave/claude-code-lens&Date)
 
 <br/>
 
 ## License
 
-MIT &copy; 2026 Ngxba, CCLens contributors
+MIT &copy; 2026 qingwave, based on [claude-code-agents-ui](https://github.com/Ngxba/claude-code-agents-ui) by Ngxba
 
 <br/>
 
 ---
-
-<p align="center">
-  <img src="docs/assets/footer.png" alt="" width="720" />
-</p>
 
 <p align="center">
   <sub>Open source under MIT. Built for developers who want to see their agents in action.</sub>
