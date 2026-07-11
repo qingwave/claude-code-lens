@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="docs/assets/header.png" alt="Claude Code Lens — visualize your Claude Code" width="720" />
-</p>
 
 <h1 align="center">Claude Code Lens (CCLens)<br/>
   <sub>Visual dashboard for Claude Code agents, sessions & configs</sub></h1>

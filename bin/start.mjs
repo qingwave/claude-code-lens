@@ -1,12 +1,10 @@
 #!/usr/bin/env node
-
-import { fileURLToPath } from 'node:url'
-import { resolve, dirname } from 'node:path'
 import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const root = resolve(__dirname, '..')
+const root = resolve(fileURLToPath(import.meta.url), '../..')
 const outputServer = resolve(root, '.output', 'server', 'index.mjs')
 
 if (!existsSync(outputServer)) {
@@ -14,10 +12,10 @@ if (!existsSync(outputServer)) {
   execSync('npx nuxi build', { cwd: root, stdio: 'inherit' })
 }
 
-const port = process.env.PORT || 3030
-process.env.PORT = String(port)
-process.env.HOST = process.env.HOST || '0.0.0.0'
+const port = process.env.PORT || '3030'
+process.env.PORT = port
+process.env.HOST = process.env.HOST || '127.0.0.1'
 
 console.log(`Starting cclens on http://localhost:${port}`)
 
-import(outputServer)
+await import(outputServer)
