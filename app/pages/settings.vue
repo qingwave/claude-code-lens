@@ -901,6 +901,23 @@ async function browseWorkingDir() {
         />
       </div>
 
+      <!-- About -->
+      <div class="pt-2 pb-1 flex items-center justify-center">
+        <a
+          href="https://github.com/qingwave/claude-code-lens"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex items-center gap-1 transition-colors"
+          style="color: var(--text-disabled);"
+          onmouseover="this.style.color='var(--text-tertiary)'"
+          onmouseout="this.style.color='var(--text-disabled)'"
+        >
+          <UIcon name="i-lucide-github" class="size-3" />
+          <span class="text-[11px]">CCLens</span>
+          <UIcon name="i-lucide-external-link" class="size-2.5" />
+        </a>
+      </div>
+
     </div>
 
     <!-- Raw JSON editor -->
