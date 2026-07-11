@@ -26,3 +26,4 @@ logs
 *.tgzpackage-lock.json
 yarn.lock
 pnpm-lock.yaml
+*.tgz
