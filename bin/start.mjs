@@ -19,7 +19,7 @@ if (!existsSync(outputServer)) {
 
 const port = process.env.PORT || '3030'
 process.env.PORT = port
-process.env.HOST = process.env.HOST || '127.0.0.1'
+process.env.HOST = process.env.HOST || 'localhost'
 
 console.log(`Starting cclens on http://localhost:${port}`)
 
