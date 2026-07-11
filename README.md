@@ -24,6 +24,8 @@
 
 ## What is Claude Code Lens?
 
+> This project is a fork of [claude-code-agents-ui](https://github.com/Ngxba/claude-code-agents-ui) originally created by [Ngxba](https://github.com/Ngxba).
+
 # Open-source visual orchestration for Claude Code
 
 **If Claude Code is the _engine_, CCLens is the _dashboard_**
