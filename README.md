@@ -178,7 +178,7 @@ CCLens handles the visual orchestration of Claude Code correctly.
 ### Install from npm (recommended)
 
 ```bash
-npm install -g cclens
+npm install -g @qingwave/cclens
 cclens
 ```
 

@@ -1,5 +1,5 @@
 {
-  "name": "cclens",
+  "name": "@qingwave/cclens",
   "version": "0.1.0",
   "description": "A visual dashboard for Claude Code — browse and edit agents, commands, skills, and workflows without touching config files.",
   "type": "module",
