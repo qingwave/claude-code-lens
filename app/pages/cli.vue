@@ -1,5 +1,8 @@
 <script setup lang="ts">
-const { executionOptions } = useCliExecution()
+const workingDirectory = ref('')
+const executionOptions = computed(() => ({
+  workingDir: workingDirectory.value || undefined,
+}))
 
 useHead({
   title: 'Claude Code',
