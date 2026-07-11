@@ -134,6 +134,7 @@ interface PermissionResolver {
   resolve: (decision: { allow: boolean; message?: string; updatedInput?: any }) => void
   reject: (error: Error) => void
   peerId: string
+  timer: NodeJS.Timeout
 }
 const pendingPermissions = new Map<string, PermissionResolver>()
 
@@ -141,6 +142,7 @@ interface InteractivePromptResolver {
   resolve: (value: string) => void
   reject: (error: Error) => void
   peerId: string
+  timer: NodeJS.Timeout
 }
 const pendingInteractivePrompts = new Map<string, InteractivePromptResolver>()
 
@@ -169,6 +171,7 @@ export async function cleanupPeer(peerId: string): Promise<void> {
   for (const [permissionId, resolver] of pendingPermissions.entries()) {
     if (resolver.peerId === peerId) {
       console.log(`[ClaudeProvider] Rejecting permission ${permissionId} due to connection closed`)
+      clearTimeout(resolver.timer)
       resolver.reject(new Error('IPC connection closed'))
       pendingPermissions.delete(permissionId)
     }
@@ -178,6 +181,7 @@ export async function cleanupPeer(peerId: string): Promise<void> {
   for (const [promptId, resolver] of pendingInteractivePrompts.entries()) {
     if (resolver.peerId === peerId) {
       console.log(`[ClaudeProvider] Rejecting interactive prompt ${promptId} due to connection closed`)
+      clearTimeout(resolver.timer)
       resolver.reject(new Error('IPC connection closed'))
       pendingInteractivePrompts.delete(promptId)
     }
@@ -326,9 +330,7 @@ export const claudeProvider: ProviderAdapter = {
 
           try {
             const decision = await new Promise<{ allow: boolean; message?: string; updatedInput?: any }>((resolve, reject) => {
-              pendingPermissions.set(permissionId, { resolve, reject, peerId: ws.id })
-
-              setTimeout(() => {
+              const timer = setTimeout(() => {
                 if (pendingPermissions.has(permissionId)) {
                   pendingPermissions.delete(permissionId)
                   resolve({ allow: false, message: 'Permission request timed out' })
@@ -344,6 +346,7 @@ export const claudeProvider: ProviderAdapter = {
                   })
                 }
               }, PERMISSION_TIMEOUT_MS)
+              pendingPermissions.set(permissionId, { resolve, reject, peerId: ws.id, timer })
             })
 
             if (decision.allow) {
@@ -377,14 +380,13 @@ export const claudeProvider: ProviderAdapter = {
 
           try {
             const value = await new Promise<string>((resolve, reject) => {
-              pendingInteractivePrompts.set(promptId, { resolve, reject, peerId: ws.id })
-
-              setTimeout(() => {
+              const timer = setTimeout(() => {
                 if (pendingInteractivePrompts.has(promptId)) {
                   pendingInteractivePrompts.delete(promptId)
                   resolve('')
                 }
               }, PERMISSION_TIMEOUT_MS)
+              pendingInteractivePrompts.set(promptId, { resolve, reject, peerId: ws.id, timer })
             })
             return value
           } catch (error: any) {
@@ -490,6 +492,7 @@ export const claudeProvider: ProviderAdapter = {
   async respondToPermission(permissionId: string, decision: 'allow' | 'deny', updatedInput?: any, remember?: boolean): Promise<void> {
     const pending = pendingPermissions.get(permissionId)
     if (pending) {
+      clearTimeout(pending.timer)
       pendingPermissions.delete(permissionId)
       pending.resolve({
         allow: decision === 'allow',
@@ -505,6 +508,7 @@ export const claudeProvider: ProviderAdapter = {
   async respondToInteractivePrompt(promptId: string, value: string): Promise<void> {
     const pending = pendingInteractivePrompts.get(promptId)
     if (pending) {
+      clearTimeout(pending.timer)
       pendingInteractivePrompts.delete(promptId)
       pending.resolve(value)
       console.log(`[ClaudeProvider] Interactive prompt ${promptId} resolved`)

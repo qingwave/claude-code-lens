@@ -53,37 +53,43 @@ export default defineEventHandler(async (): Promise<TokenStats> => {
         crlfDelay: Infinity,
       })
 
-      for await (const line of rl) {
-        if (!line.trim()) continue
-        let obj: Record<string, unknown>
-        try {
-          obj = JSON.parse(line)
-        } catch {
-          continue
+      try {
+        for await (const line of rl) {
+          if (!line.trim()) continue
+          let obj: Record<string, unknown>
+          try {
+            obj = JSON.parse(line)
+          } catch {
+            continue
+          }
+
+          const usage = (obj as any).message?.usage
+          if (!usage || typeof usage !== 'object') continue
+
+          const inp = (usage.input_tokens as number) || 0
+          const out = (usage.output_tokens as number) || 0
+          const cacheCreate = (usage.cache_creation_input_tokens as number) || 0
+          const cacheRead = (usage.cache_read_input_tokens as number) || 0
+
+          if (inp === 0 && out === 0 && cacheCreate === 0 && cacheRead === 0) continue
+
+          inputTokens += inp
+          outputTokens += out
+          cacheCreationTokens += cacheCreate
+          cacheReadTokens += cacheRead
+
+          const model = (obj as any).message?.model as string | undefined
+          const pricing = getModelPricing(model)
+          estimatedCostUsd +=
+            (inp / 1_000_000) * pricing.input +
+            (out / 1_000_000) * pricing.output +
+            (cacheCreate / 1_000_000) * pricing.input * 1.25 + // cache write ~25% surcharge
+            (cacheRead / 1_000_000) * pricing.cached
         }
-
-        const usage = (obj as any).message?.usage
-        if (!usage || typeof usage !== 'object') continue
-
-        const inp = (usage.input_tokens as number) || 0
-        const out = (usage.output_tokens as number) || 0
-        const cacheCreate = (usage.cache_creation_input_tokens as number) || 0
-        const cacheRead = (usage.cache_read_input_tokens as number) || 0
-
-        if (inp === 0 && out === 0 && cacheCreate === 0 && cacheRead === 0) continue
-
-        inputTokens += inp
-        outputTokens += out
-        cacheCreationTokens += cacheCreate
-        cacheReadTokens += cacheRead
-
-        const model = (obj as any).message?.model as string | undefined
-        const pricing = getModelPricing(model)
-        estimatedCostUsd +=
-          (inp / 1_000_000) * pricing.input +
-          (out / 1_000_000) * pricing.output +
-          (cacheCreate / 1_000_000) * pricing.input * 1.25 + // cache write ~25% surcharge
-          (cacheRead / 1_000_000) * pricing.cached
+      } catch {
+        // skip unreadable files
+      } finally {
+        rl.close()
       }
     }
   }

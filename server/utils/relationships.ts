@@ -96,7 +96,7 @@ export function extractRelationships(
         add({
           sourceType: 'command',
           sourceSlug: cmd.slug,
-          targetType: 'mcp' as any,
+          targetType: 'mcp',
           targetSlug: mcpName,
           type: 'spawns',
           evidence: `uses tools from "${mcpName}" MCP server`,
@@ -108,7 +108,7 @@ export function extractRelationships(
     const spawnMatches = cmd.body.matchAll(/[Ss]pawn(?:s|ed)?\s+(?:the\s+)?["']?([a-z][\w-]*)["']?/g)
     for (const m of spawnMatches) {
       const name = m[1]
-      if (agentNames.has(name)) {
+      if (name && agentNames.has(name)) {
         add({
           sourceType: 'command',
           sourceSlug: cmd.slug,
@@ -142,6 +142,7 @@ export function extractRelationships(
     const cmdMatches = agent.body.matchAll(/\/(\w+[:\-]\w[\w-]*)/g)
     for (const m of cmdMatches) {
       const cmdName = m[1]
+      if (!cmdName) continue
       const matchingCmd = commands.find(c =>
         c.frontmatter.name === cmdName || c.slug === cmdName.replace(/:/g, '--')
       )
@@ -164,7 +165,7 @@ export function extractRelationships(
         add({
           sourceType: 'agent',
           sourceSlug: agent.slug,
-          targetType: 'mcp' as any,
+          targetType: 'mcp',
           targetSlug: mcpName,
           type: 'spawns',
           evidence: `uses tools from "${mcpName}" MCP server`,
@@ -210,7 +211,7 @@ export function extractRelationships(
         add({
           sourceType: 'skill',
           sourceSlug: skill.slug,
-          targetType: 'mcp' as any,
+          targetType: 'mcp',
           targetSlug: mcpName,
           type: 'spawns',
           evidence: `uses tools from "${mcpName}" MCP server`,

@@ -136,8 +136,17 @@ export default defineEventHandler(async (event) => {
     'Connection': 'keep-alive',
   })
 
+  const res = event.node.res
+  let closed = false
+  res.on('close', () => { closed = true })
+
   const sendEvent = (type: string, data: unknown) => {
-    event.node.res.write(`data: ${JSON.stringify({ type, ...data as object })}\n\n`)
+    if (closed) return
+    try {
+      res.write(`data: ${JSON.stringify({ type, ...data as object })}\n\n`)
+    } catch {
+      closed = true
+    }
   }
 
   try {
@@ -161,6 +170,7 @@ export default defineEventHandler(async (event) => {
         ...(sessionId ? { resume: sessionId } : {}),
       },
     })) {
+      if (closed) break
       // Capture session ID for resumption
       if (message.type === 'system' && message.subtype === 'init') {
         sessionId = message.session_id
@@ -230,5 +240,5 @@ export default defineEventHandler(async (event) => {
     sendEvent('error', { message: errorMessage })
   }
 
-  event.node.res.end()
+  if (!closed) event.node.res.end()
 })

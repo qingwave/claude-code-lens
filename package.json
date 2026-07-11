@@ -16,7 +16,7 @@
     "dev": "nuxt dev --port 3030",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "prepare": "nuxt prepare",
+    "prepare": "bunx nuxt prepare",
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {

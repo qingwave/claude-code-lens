@@ -21,8 +21,12 @@ type ShellOut =
   | { type: 'error'; error: string }
 
 function send(peer: Peer, msg: ShellOut) {
-  peer.send(JSON.stringify(msg))
+  try {
+    peer.send(JSON.stringify(msg))
+  } catch { /* peer already closed */ }
 }
+
+const peerSessions = new Map<string, string>()
 
 export default defineWebSocketHandler({
   open(peer: Peer) {
@@ -47,6 +51,7 @@ export default defineWebSocketHandler({
             rows: msg.rows,
           })
 
+          peerSessions.set(peer.id, session.id)
           send(peer, { type: 'session', sessionId: session.id, shell: session.shell })
 
           session.pty.onData((data) => {
@@ -54,6 +59,7 @@ export default defineWebSocketHandler({
           })
 
           session.pty.onExit(({ exitCode }) => {
+            peerSessions.delete(peer.id)
             send(peer, { type: 'exit', exitCode: exitCode ?? 0 })
           })
 
@@ -70,6 +76,7 @@ export default defineWebSocketHandler({
 
         case 'kill':
           await terminateShellSession(msg.sessionId)
+          peerSessions.delete(peer.id)
           send(peer, { type: 'exit', exitCode: 0 })
           break
 
@@ -81,7 +88,12 @@ export default defineWebSocketHandler({
     }
   },
 
-  close(peer: Peer) {
+  async close(peer: Peer) {
     console.log('[Shell WS] disconnected', peer.id)
+    const sessionId = peerSessions.get(peer.id)
+    if (sessionId) {
+      peerSessions.delete(peer.id)
+      await terminateShellSession(sessionId)
+    }
   },
 })

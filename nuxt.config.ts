@@ -16,7 +16,6 @@ export default defineNuxtConfig({
 
   vite: {
     ssr: {
-      noExternal: [],
       external: ['@xterm/xterm', '@xterm/addon-serialize', '@xterm/addon-web-links', '@xterm/addon-fit', '@xterm/addon-search'],
     },
   },
