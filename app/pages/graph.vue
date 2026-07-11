@@ -19,7 +19,7 @@ const router = useRouter()
 
 const relationships = ref<Relationship[]>([])
 const loading = ref(true)
-const showLegend = ref(true)
+const showLegend = ref(false)
 
 const { workingDir } = useWorkingDir()
 
