@@ -157,9 +157,6 @@ watch(() => current.value?.id, () => { showDiff.value = false })
   <div v-if="permissions.length > 0 && current" class="mb-2">
     <div class="permission-card rounded-2xl overflow-hidden" style="border: 1px solid rgba(229,169,62,0.25); background: var(--surface-overlay);">
 
-      <!-- Top accent strip -->
-      <div class="h-[2px] w-full" style="background: linear-gradient(90deg, rgba(229,169,62,0.8) 0%, rgba(234,88,12,0.5) 100%);" />
-
       <!-- Header -->
       <div class="flex items-center gap-2.5 px-4 pt-3 pb-2">
         <div
@@ -196,9 +193,6 @@ watch(() => current.value?.id, () => { showDiff.value = false })
           </div>
         </template>
       </div>
-
-      <!-- Divider -->
-      <div class="mx-4" style="height: 1px; background: var(--border-subtle);" />
 
       <!-- Body -->
       <div class="px-4 py-3">
