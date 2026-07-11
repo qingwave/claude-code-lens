@@ -11,7 +11,6 @@ agents-ui is a Nuxt 3-based visual dashboard — now named **Claude Code Lens (C
 ```bash
 # Development
 bun run dev          # Start dev server at http://localhost:3030
-npm run dev          # Alternative with npm
 
 # Build & Production
 bun run build        # Build for production
