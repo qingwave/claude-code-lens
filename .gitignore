@@ -23,7 +23,7 @@ logs
 .claude
 
 # Local tgz files
-*.tgzpackage-lock.json
+*.tgz
+package-lock.json
 yarn.lock
 pnpm-lock.yaml
-*.tgz
