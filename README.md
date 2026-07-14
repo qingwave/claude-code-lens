@@ -135,6 +135,43 @@ Browse and import community agent templates and marketplace resources instantly.
 
 <br/>
 
+## Quickstart
+
+### Install globally (recommended)
+
+```bash
+# npm
+npm install -g @qingwave/cclens && cclens
+
+# bun
+bun install -g @qingwave/cclens && cclens
+```
+
+Open **http://localhost:3030** — CCLens will automatically load your `~/.claude` setup.
+
+> **Requirements:** Node.js 22+
+
+### Try without installing
+
+```bash
+npx @qingwave/cclens
+# or
+bunx @qingwave/cclens
+```
+
+### Run from source
+
+```bash
+git clone https://github.com/qingwave/claude-code-lens.git
+cd claude-code-lens
+bun install
+bun run dev
+```
+
+> **Requirements:** [Bun](https://bun.sh) and Node.js 22+
+
+<br/>
+
 ## Problems CCLens solves
 
 | Without CCLens                                                                                                                     | With CCLens                                                                                                                         |
@@ -172,32 +209,6 @@ CCLens handles the visual orchestration of Claude Code correctly.
 | **Not a hosted service.**     | CCLens runs locally on your machine for maximum privacy and access to your local files.                           |
 
 <br/>
-
-## Quickstart
-
-### Install from npm (recommended)
-
-```bash
-npm install -g @qingwave/cclens
-cclens
-```
-
-Open **http://localhost:3030** — CCLens will automatically load your `~/.claude` setup.
-
-> **Requirements:** Node.js 22+
-
-### Run from source
-
-```bash
-git clone https://github.com/qingwave/claude-code-lens.git
-cd claude-code-lens
-bun install
-bun run dev
-```
-
-Open **http://localhost:3030**
-
-> **Requirements:** [Bun](https://bun.sh) and Node.js 22+
 
 <br/>
 
