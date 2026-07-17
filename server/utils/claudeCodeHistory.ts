@@ -884,3 +884,119 @@ export async function renameClaudeCodeProject(projectName: string, newDisplayNam
     return false
   }
 }
+
+export interface UserMessageMatch {
+  sessionId: string
+  projectName: string
+  projectDisplayName: string
+  summary: string
+  lastActivity: string
+  matchedText: string
+}
+
+export async function searchUserMessages(query: string, projectDisplayNames?: Record<string, string>): Promise<UserMessageMatch[]> {
+  const q = query.toLowerCase()
+  const projectsDir = getClaudeProjectsDir()
+  const results: UserMessageMatch[] = []
+  const systemPrefixes = ['<command-name>', '<command-message>', '<command-args>', '<local-command', '<system-reminder>', 'Caveat:']
+
+  let projectDirs: string[]
+  try {
+    projectDirs = await fs.readdir(projectsDir)
+  } catch {
+    return []
+  }
+
+  for (const projectName of projectDirs) {
+    const projectDir = join(projectsDir, projectName)
+    let files: string[]
+    try {
+      files = await fs.readdir(projectDir)
+    } catch {
+      continue
+    }
+
+    const jsonlFiles = files.filter(f => f.endsWith('.jsonl') && !f.startsWith('agent-'))
+    const sessionMatches = new Map<string, UserMessageMatch>()
+    const sessionMeta = new Map<string, { summary: string; lastActivity: string }>()
+    const projectDisplayName = projectDisplayNames?.[projectName] ?? projectName.replace(/^-+/, '').split('-').pop() ?? projectName
+
+    for (const file of jsonlFiles) {
+      const filePath = join(projectDir, file)
+      const rl = createInterface({ input: createReadStream(filePath), crlfDelay: Infinity })
+
+      for await (const line of rl) {
+        if (!line.trim()) continue
+        let entry: any
+        try { entry = JSON.parse(line) } catch { continue }
+
+        const sessionId: string | undefined = entry.sessionId
+        if (!sessionId) continue
+
+        if (!sessionMeta.has(sessionId)) {
+          sessionMeta.set(sessionId, { summary: 'New Session', lastActivity: entry.timestamp || '' })
+        }
+        const meta = sessionMeta.get(sessionId)!
+        if (entry.timestamp > meta.lastActivity) meta.lastActivity = entry.timestamp
+        if (entry.type === 'summary' && entry.summary) meta.summary = entry.summary
+        if (entry.type === 'ai-title' && entry.aiTitle) meta.summary = entry.aiTitle
+
+        if (entry.message?.role !== 'user') continue
+
+        // Extract clean text from user message
+        const content = entry.message.content
+        let text = ''
+        if (typeof content === 'string') {
+          text = content
+        } else if (Array.isArray(content)) {
+          const textPart = content.find((c: any) =>
+            c.type === 'text' && c.text && !systemPrefixes.some(p => (c.text as string).trimStart().startsWith(p))
+          )
+          text = textPart?.text || content.filter((c: any) => c.type === 'text').map((c: any) => c.text).join(' ')
+        }
+        if (systemPrefixes.some(p => text.trimStart().startsWith(p))) text = ''
+
+        // Use first clean user message as fallback title
+        if (meta.summary === 'New Session' && text) {
+          meta.summary = text.length > 100 ? text.slice(0, 100).trim() + '...' : text.trim()
+        }
+
+        // Match summary or message content
+        if (!sessionMatches.has(sessionId)) {
+          const summaryMatch = meta.summary.toLowerCase().includes(q)
+          const contentMatch = text && text.toLowerCase().includes(q)
+
+          if (summaryMatch || contentMatch) {
+            let matchedText: string | undefined
+            if (contentMatch && text) {
+              const idx = text.toLowerCase().indexOf(q)
+              const start = Math.max(0, idx - 40)
+              const end = Math.min(text.length, idx + q.length + 40)
+              matchedText = (start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : '')
+            }
+            sessionMatches.set(sessionId, {
+              sessionId,
+              projectName,
+              projectDisplayName,
+              summary: meta.summary,
+              lastActivity: meta.lastActivity,
+              matchedText: matchedText ?? '',
+            })
+          }
+        }
+      }
+    }
+
+    // Sync final metadata (summary/lastActivity may have been updated after first match)
+    for (const [sessionId, match] of sessionMatches) {
+      const meta = sessionMeta.get(sessionId)
+      if (meta) {
+        match.summary = meta.summary
+        match.lastActivity = meta.lastActivity
+      }
+      results.push(match)
+    }
+  }
+
+  return results.sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime())
+}

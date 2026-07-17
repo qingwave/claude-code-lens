@@ -20,6 +20,7 @@ type ResultItem = {
   icon: string
   color?: string
   model?: string
+  matchedText?: string
 }
 
 // Remote search results (projects + sessions)
@@ -36,7 +37,7 @@ async function fetchRemote(q: string) {
   try {
     const data = await $fetch<{
       projects: { name: string; displayName: string; sessionCount: number; lastActivity?: string }[]
-      sessions: { sessionId: string; summary: string; projectName: string; projectDisplayName: string; lastActivity: string }[]
+      sessions: { sessionId: string; summary: string; projectName: string; projectDisplayName: string; lastActivity: string; matchedText?: string }[]
     }>(`/api/search?q=${encodeURIComponent(q)}`)
 
     const items: ResultItem[] = []
@@ -58,6 +59,7 @@ async function fetchRemote(q: string) {
         sublabel: s.projectDisplayName,
         to: `/cli/project/${encodeURIComponent(s.projectName)}/session/${s.sessionId}`,
         icon: 'i-lucide-message-square',
+        matchedText: s.matchedText,
       })
     }
 
@@ -239,6 +241,10 @@ if (import.meta.client) {
 
             <span class="flex-1 text-[12px] truncate text-label">
               {{ result.sublabel }}
+            </span>
+
+            <span v-if="result.matchedText" class="flex-1 text-[11px] truncate text-meta font-mono">
+              {{ result.matchedText }}
             </span>
 
             <span class="text-[10px] font-mono shrink-0 text-meta">
