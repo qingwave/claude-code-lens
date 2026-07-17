@@ -347,6 +347,11 @@ function startSessionSync() {
     if (claudeCodeMessages.value.length > prevCount) {
       const session = history.sessions.value.find(s => s.id === urlSessionId.value)
       if (session) session.lastActivity = new Date().toISOString()
+      // History is now up to date — drop realtime messages to prevent duplication
+      // with the same turn now persisted in claudeCodeMessages.
+      if (isContinuingHistory.value && urlSessionId.value) {
+        sessionStore.clearRealtime(urlSessionId.value)
+      }
     }
   }, 3000)
 }
@@ -841,10 +846,13 @@ function scrollToBottom(behavior: ScrollBehavior = 'auto'): Promise<void> {
 
 // Handle Claude Code history session selection
 async function handleClaudeCodeSessionSelected(payload: { projectName: string; sessionId: string; sessionSummary: string; projectDisplayName: string }) {
-  // Guard: if this session is the one we're currently live-chatting (or just finished),
-  // don't switch to history mode — just sync sidebar state.
-  // Check both currentSessionId (set by session_created) and urlSessionId (set by refreshProjectForNewSession).
-  if (payload.sessionId === currentSessionId.value || (payload.sessionId === urlSessionId.value && viewMode.value === 'live')) {
+  // Guard: don't reload if already showing this session.
+  // Also guard history+continuing to prevent re-fetch mid-conversation causing duplicates.
+  const alreadyLive = payload.sessionId === currentSessionId.value ||
+    (payload.sessionId === urlSessionId.value && viewMode.value === 'live')
+  const alreadyHistory = payload.sessionId === urlSessionId.value &&
+    viewMode.value === 'history' && isContinuingHistory.value
+  if (alreadyLive || alreadyHistory) {
     urlProjectName.value = payload.projectName
     urlSessionId.value = payload.sessionId
     currentSessionSummary.value = payload.sessionSummary
