@@ -29,6 +29,7 @@ const {
   streamingText,
   permissions,
   hasPendingPermissions,
+  hitMaxTurns,
   connect,
   disconnect,
   sendChat,
@@ -418,12 +419,12 @@ const currentEffort = computed(() => effortOptions.find(o => o.value === effortL
 const effortMenuRef = ref<HTMLElement | null>(null)
 
 // Max turns selector
-const maxTurns = ref<number | null>(10)
+const maxTurns = ref<number | null>(20)
 const maxTurnsOptions: { value: number | null; label: string; description: string }[] = [
   { value: null,  label: '∞',   description: 'No limit' },
   { value: 5,    label: '5',   description: 'Quick tasks' },
-  { value: 10,   label: '10',  description: 'Default' },
-  { value: 20,   label: '20',  description: 'Extended tasks' },
+  { value: 10,   label: '10',  description: 'Standard' },
+  { value: 20,   label: '20',  description: 'Default' },
   { value: 50,   label: '50',  description: 'Long running' },
 ]
 
@@ -1497,6 +1498,19 @@ async function handleSendMessage(images: string[] = []) {
   inputText.value = ''
 }
 
+function continueAfterMaxTurns() {
+  hitMaxTurns.value = false
+  sendChat('continue', {
+    sessionId: currentSessionId.value || undefined,
+    workingDir: localWorkingDir.value || undefined,
+    permissionMode: selectedPermissionMode.value,
+    model: selectedModel.value,
+    effort: effortLevel.value,
+    maxTurns: maxTurns.value ?? undefined,
+    outputStyleId: selectedOutputStyleId.value,
+  })
+}
+
 // Abort current stream then immediately send the queued input
 async function handleAbortAndSend(images: string[] = []) {
   const text = inputText.value
@@ -2155,6 +2169,25 @@ function handleClosePreview() {
             style="background: linear-gradient(to top, var(--surface-base), var(--surface-base) 60%, transparent);"
           >
             <div class="max-w-[800px] mx-auto pl-[52px] md:pl-[60px] pr-8">
+              <!-- Max turns reached banner -->
+              <div
+                v-if="hitMaxTurns && !isStreaming"
+                class="mb-2 flex items-center gap-3 rounded-lg border px-4 py-3 text-[13px]"
+                style="background: var(--surface-raised); border-color: var(--accent); color: var(--text-primary);"
+              >
+                <span style="color: var(--accent);">⚠</span>
+                <span class="flex-1">已达到 {{ maxTurns }} turns 上限，任务可能尚未完成。</span>
+                <button
+                  class="rounded-md px-3 py-1 text-[12px] font-medium transition-colors focus-ring"
+                  style="background: var(--accent); color: var(--surface-base);"
+                  @click="continueAfterMaxTurns"
+                >继续</button>
+                <button
+                  class="rounded-md px-3 py-1 text-[12px] font-medium transition-colors focus-ring"
+                  style="background: var(--surface-overlay); color: var(--text-secondary);"
+                  @click="hitMaxTurns = false"
+                >停止</button>
+              </div>
               <!-- Pending permission floats above input -->
               <ChatV2PendingPermission
                 v-if="hasPendingPermissions"

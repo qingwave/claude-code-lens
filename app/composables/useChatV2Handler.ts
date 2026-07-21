@@ -21,6 +21,7 @@ export function useChatV2Handler() {
   const error = ref<string | null>(null)
   const currentSessionId = ref<string | null>(null)
   const sessionCreatedWorkingDir = ref<string | null>(null)
+  const hitMaxTurns = ref(false)
 
   // Integrate streaming buffer
   const streamingBuffer = useStreamingBuffer()
@@ -299,6 +300,10 @@ export function useChatV2Handler() {
           // for past turns; keeping them in realtime causes unbounded growth and dedup issues
           sessionStore.trimRealtimeToLastTurn(completeSessionId)
 
+          if (message.metadata?.stopReason === 'max_turns') {
+            hitMaxTurns.value = true
+          }
+
           // Update context monitor with aggregated usage from result
           if (message.metadata?.aggregatedUsage) {
             const usage = message.metadata.aggregatedUsage
@@ -407,6 +412,7 @@ export function useChatV2Handler() {
       images?: string[]
     } = {}
   ): boolean {
+    hitMaxTurns.value = false
     // For new sessions, generate a temporary client-side session ID
     // Format: new-session-{timestamp}. Will be replaced by server session ID on session_created event
     const targetSessionId = options.sessionId || currentSessionId.value || `new-session-${Date.now()}`
@@ -540,6 +546,7 @@ export function useChatV2Handler() {
     error: readonly(error),
     currentSessionId: readonly(currentSessionId),
     sessionCreatedWorkingDir: readonly(sessionCreatedWorkingDir),
+    hitMaxTurns,
 
     // Streaming state
     isStreaming: streamingBuffer.isStreaming,
