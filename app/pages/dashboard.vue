@@ -284,6 +284,12 @@ const agentModelStats = computed(() =>
         <ActivityHeatmap />
       </div>
 
+      <!-- Project relationships graph -->
+      <div class="mb-6">
+        <p class="text-[11px] font-semibold uppercase tracking-widest mb-1.5 px-0.5" style="color: var(--text-disabled)">Projects</p>
+        <ProjectGraph />
+      </div>
+
       <!-- Bento grid: Agents + Commands + Quick Actions -->
       <div v-if="hasContent" class="mb-6">
         <p class="text-[11px] font-semibold uppercase tracking-widest mb-1.5 px-0.5" style="color: var(--text-disabled)">Assets</p>
