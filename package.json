@@ -11,8 +11,9 @@
     ".output/"
   ],
   "scripts": {
-    "build": "nuxt build && node -e \"import('node:fs').then(fs => fs.rmSync('.output/server/node_modules/node-pty', {recursive:true, force:true}))\"",
-    "prepublishOnly": "nuxt build && node -e \"import('node:fs').then(fs => fs.rmSync('.output/server/node_modules/node-pty', {recursive:true, force:true}))\"",
+    "build": "tsup && nuxt build && node -e \"import('node:fs').then(fs => fs.rmSync('.output/server/node_modules/node-pty', {recursive:true, force:true}))\"",
+    "build:cli": "tsup",
+    "prepublishOnly": "tsup && nuxt build && node -e \"import('node:fs').then(fs => fs.rmSync('.output/server/node_modules/node-pty', {recursive:true, force:true}))\"",
     "dev": "nuxt dev --port 3030 --open",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
@@ -45,6 +46,7 @@
     "@fontsource/geist-sans": "^5.2.5",
     "@iconify-json/lucide": "1.2.116",
     "@types/ws": "^8.18.1",
+    "tsup": "^8.5.1",
     "typescript": "^5.9",
     "vue-tsc": "^3.3.7"
   },

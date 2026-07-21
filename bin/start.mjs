@@ -2,9 +2,35 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execSync } from 'node:child_process'
+import { execSync, spawnSync } from 'node:child_process'
 
 const root = resolve(fileURLToPath(import.meta.url), '../..')
+
+// Parse args: --port/-p starts server with custom port, anything else → CLI mode
+const args = process.argv.slice(2)
+const portFlagIdx = args.findIndex(a => a === '--port' || a === '-p')
+let customPort = null
+if (portFlagIdx !== -1) {
+  customPort = args[portFlagIdx + 1]
+  args.splice(portFlagIdx, 2)
+}
+// Also handle --port=3031 form
+const portEqArg = args.find(a => a.startsWith('--port='))
+if (portEqArg) {
+  customPort = portEqArg.split('=')[1]
+  args.splice(args.indexOf(portEqArg), 1)
+}
+
+const firstArg = args[0]
+if (firstArg) {
+  const cliEntry = resolve(root, 'bin', 'dist', 'cli.js')
+  if (!existsSync(cliEntry)) {
+    console.error('CLI not built. Run: bun run build:cli')
+    process.exit(1)
+  }
+  const result = spawnSync(process.execPath, [cliEntry, ...process.argv.slice(2)], { stdio: 'inherit' })
+  process.exit(result.status ?? 0)
+}
 const outputServer = resolve(root, '.output', 'server', 'index.mjs')
 
 if (!existsSync(outputServer)) {
@@ -17,7 +43,7 @@ if (!existsSync(outputServer)) {
   }
 }
 
-const port = process.env.PORT || '3030'
+const port = customPort || process.env.PORT || '3030'
 process.env.PORT = port
 process.env.HOST = process.env.HOST || 'localhost'
 
