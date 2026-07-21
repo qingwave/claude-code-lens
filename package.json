@@ -13,7 +13,7 @@
   "scripts": {
     "build": "nuxt build && node -e \"import('node:fs').then(fs => fs.rmSync('.output/server/node_modules/node-pty', {recursive:true, force:true}))\"",
     "prepublishOnly": "nuxt build && node -e \"import('node:fs').then(fs => fs.rmSync('.output/server/node_modules/node-pty', {recursive:true, force:true}))\"",
-    "dev": "nuxt dev --port 3030",
+    "dev": "nuxt dev --port 3030 --open",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "prepare": "bunx nuxt prepare",

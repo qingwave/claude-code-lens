@@ -48,3 +48,12 @@ console.log(`  ${green}✓${reset} Ready at ${bold}http://localhost:${port}${res
 console.log('')
 
 await import(outputServer)
+
+// Open browser after server starts
+setTimeout(() => {
+  const url = `http://localhost:${port}`
+  const cmd = process.platform === 'darwin' ? `open ${url}`
+    : process.platform === 'win32' ? `start ${url}`
+    : `xdg-open ${url}`
+  execSync(cmd, { stdio: 'ignore' })
+}, 1000)
