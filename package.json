@@ -1,7 +1,7 @@
 {
   "name": "@qingwave/cclens",
-  "version": "0.1.0",
-  "description": "A visual dashboard for Claude Code — browse and edit agents, commands, skills, and workflows without touching config files.",
+  "version": "0.2.0",
+  "description": "Visual dashboard & CLI for Claude Code — manage agents, sessions, skills, and configs from UI or terminal.",
   "type": "module",
   "bin": {
     "cclens": "./bin/start.mjs"

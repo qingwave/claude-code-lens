@@ -62,7 +62,7 @@ console.log(`${cyan}${bold}  ██║     ██║     ██║     ██╔
 console.log(`${cyan}${bold}  ╚██████╗╚██████╗███████╗███████╗██║ ╚████║███████║${reset}`)
 console.log(`${cyan}${bold}   ╚═════╝ ╚═════╝╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝${reset}`)
 console.log('')
-console.log(`${bold}  Claude Code Lens${reset}  ${dim}v0.1.0${reset}`)
+console.log(`${bold}  Claude Code Lens${reset}  ${dim}v0.2.0${reset}`)
 console.log(`${dim}  Visual dashboard for managing Claude Code agents,${reset}`)
 console.log(`${dim}  commands, skills, workflows and plugins.${reset}`)
 console.log('')
