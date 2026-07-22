@@ -26,20 +26,20 @@ interface CommandDef {
 }
 
 const commands: Record<string, CommandDef> = {
-  search:   { fn: cmdSearch,   usage: 'search, -s <query>',       desc: 'Full-text search across all sessions' },
-  sessions: { fn: cmdSessions, usage: 'sessions [project]',       desc: 'List recent sessions, select to resume' },
-  export:   { fn: cmdExport,   usage: 'export <id|query>',        desc: 'Export session messages as markdown' },
-  projects: { fn: cmdProjects, usage: 'projects',                 desc: 'List all projects' },
-  rename:   { fn: cmdRename,   usage: 'rename <old> <new>',       desc: 'Rename project directory in ~/.claude' },
-  agents:   { fn: cmdAgents,   usage: 'agents [name]',            desc: 'List agents or inspect one by name' },
+  search:   { fn: cmdSearch,   usage: 'search, -s <query>',       desc: 'Search sessions by content, select to resume' },
+  sessions: { fn: cmdSessions, usage: 'sessions [project]',       desc: 'Browse recent sessions, select to resume' },
+  export:   { fn: cmdExport,   usage: 'export <id|query>',        desc: 'Export a session to markdown' },
+  projects: { fn: cmdProjects, usage: 'projects',                 desc: 'List all projects with session counts' },
+  rename:   { fn: cmdRename,   usage: 'rename <old> <new>',       desc: 'Rename a project in ~/.claude' },
+  agents:   { fn: cmdAgents,   usage: 'agents [name]',            desc: 'List agents or show one\'s details' },
   commands: { fn: cmdCommands, usage: 'commands',                 desc: 'List custom slash commands' },
-  skills:   { fn: cmdSkills,   usage: 'skills',                   desc: 'List skills' },
-  workflows:{ fn: cmdWorkflows,usage: 'workflows',                desc: 'List workflows and their steps' },
+  skills:   { fn: cmdSkills,   usage: 'skills',                   desc: 'List skills and their context' },
+  workflows:{ fn: cmdWorkflows,usage: 'workflows',                desc: 'List workflows and steps' },
   plugins:  { fn: cmdPlugins,  usage: 'plugins',                  desc: 'List installed plugins' },
-  memory:   { fn: cmdMemory,   usage: 'memory [project]',         desc: 'List memory files (global + all projects)' },
+  memory:   { fn: cmdMemory,   usage: 'memory [project]',         desc: 'Browse memory files by scope and type' },
   mcp:      { fn: cmdMcp,      usage: 'mcp',                      desc: 'List configured MCP servers' },
-  stats:    { fn: cmdStats,    usage: 'stats',                    desc: 'Token usage, recent activity, agent stats' },
-  cleanup:  { fn: cmdCleanup,  usage: 'cleanup [project]',        desc: 'Delete empty sessions' },
+  stats:    { fn: cmdStats,    usage: 'stats',                    desc: 'Overview: tokens, cost, activity, usage' },
+  cleanup:  { fn: cmdCleanup,  usage: 'cleanup [project]',        desc: 'Remove empty sessions' },
 }
 
 const categories: { label: string; keys: string[] }[] = [
@@ -51,12 +51,12 @@ const categories: { label: string; keys: string[] }[] = [
 
 function printHelp() {
   console.log()
-  console.log(`  ${bold('CCLens')} ${dim(`v${version}`)}  ${dim('Visual dashboard & CLI for Claude Code')}`)
+  console.log(`  ${bold('CCLens')} ${dim(`v${version}`)}  ${dim('Manage Claude Code config & sessions from UI or CLI')}`)
   console.log()
-  console.log(`  ${dim('Usage')}`)
-  console.log(`    ${'cclens'.padEnd(24)}  ${dim('Start web UI at http://localhost:3030')}`)
-  console.log(`    ${'cclens --port 8080'.padEnd(24)}  ${dim('Start web UI on custom port')}`)
-  console.log(`    ${'cclens <command> [args]'.padEnd(24)}  ${dim('Run a CLI command')}`)
+  console.log(`  ${bold('Usage')}`)
+  console.log(`    ${'cclens'.padEnd(20)} ${dim(''.padEnd(16))} Start web UI at http://localhost:3030`)
+  console.log(`    ${'cclens --port 8080'.padEnd(20)} ${dim(''.padEnd(16))} Start web UI on custom port`)
+  console.log(`    ${'cclens <command>'.padEnd(20)} ${dim('[args]'.padEnd(16))} Run a CLI command`)
   console.log()
 
   for (const { label, keys } of categories) {
@@ -87,7 +87,7 @@ async function main() {
     return
   }
 
-  if (cmd === '-s' || cmd === '--search') {
+  if (cmd === '-s') {
     await commands.search!.fn(args)
     return
   }

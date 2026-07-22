@@ -46,13 +46,34 @@ export interface TokenStats {
 }
 
 function decodePath(encoded: string): string {
-  // encoded: leading - removed, then - → /
   return ('/' + encoded.replace(/^-+/, '')).replace(/-/g, '/')
 }
 
 function displayName(path: string): string {
   const parts = path.split('/').filter(Boolean)
   return parts[parts.length - 1] || path
+}
+
+async function getProjectDisplayName(encodedName: string): Promise<string> {
+  // Try to read cwd from a session file to get the real path
+  const dir = join(projectsDir(), encodedName)
+  const files = await fs.readdir(dir).catch(() => [] as string[])
+  const jsonlFiles = files.filter(f => f.endsWith('.jsonl') && !f.startsWith('agent-'))
+  for (const file of jsonlFiles.slice(0, 3)) {
+    const rl = createInterface({ input: createReadStream(join(dir, file)), crlfDelay: Infinity })
+    for await (const line of rl) {
+      if (!line.trim()) continue
+      try {
+        const entry = JSON.parse(line)
+        if (entry.cwd && typeof entry.cwd === 'string') {
+          rl.close()
+          return displayName(entry.cwd)
+        }
+      } catch { /* skip */ }
+    }
+  }
+  // Fallback: use last segment of encoded name
+  return encodedName.replace(/^-+/, '').split('-').pop() ?? encodedName
 }
 
 export async function listProjects(): Promise<Project[]> {
@@ -69,10 +90,11 @@ export async function listProjects(): Promise<Project[]> {
         const lastActivity = mtimes
           .filter((t): t is Date => t !== null)
           .sort((a, b) => b.getTime() - a.getTime())[0]?.toISOString()
+        const dname = await getProjectDisplayName(e.name)
         const decoded = decodePath(e.name)
         return {
           name: e.name,
-          displayName: displayName(decoded),
+          displayName: dname,
           path: decoded,
           sessionsCount: sessions.length,
           lastActivity,
