@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-agents-ui is a Nuxt 3-based visual dashboard — now named **Claude Code Lens (CCLens)** — for managing Claude Code agents, commands, skills, workflows, and plugins. It provides a GUI layer on top of the `~/.claude` directory, allowing users to create, edit, and organize their Claude Code configuration without touching markdown files directly.
+agents-ui is a Nuxt 3-based visual dashboard — now named **Claude Code Lens (CCLens)** — for managing Claude Code agents, commands, skills, workflows, and plugins. It provides a GUI layer and terminal-native CLI on top of the `~/.claude` directory, allowing users to create, edit, and organize their Claude Code configuration without touching markdown files directly.
 
 ## Development Commands
 
@@ -13,7 +13,8 @@ agents-ui is a Nuxt 3-based visual dashboard — now named **Claude Code Lens (C
 bun run dev          # Start dev server at http://localhost:3030
 
 # Build & Production
-bun run build        # Build for production
+bun run build        # Build for production (Nuxt + CLI)
+bun run build:cli    # Build CLI only (tsup → bin/dist/cli.js)
 bun run preview      # Preview production build
 
 # Type Checking
@@ -52,6 +53,15 @@ The app uses a centralized CRUD pattern via `useCrud.ts` which provides standard
 The Agent Studio (`/agents/[slug]` page with test panel) uses SSE (Server-Sent Events) for streaming responses. The backend (`server/api/chat.post.ts`) uses the `@anthropic-ai/claude-agent-sdk` to query agents and stream results back as `text_delta`, `thinking_delta`, `tool_progress` events.
 
 ### Backend (Nuxt Server API)
+
+**CLI Layer** (`bin/`):
+- `start.mjs` - Entry point: no args → start web UI, any arg → delegate to CLI
+- `cli/index.ts` - CLI dispatcher with categorized help
+- `cli/core.ts` - File-system data layer (reads `~/.claude` directly, no server needed)
+- `cli/ui.ts` - Terminal color helpers and interactive picker with pagination
+- `cli/commands/` - One file per command: search, sessions, export, agents, memory, mcp, stats, cleanup, rename, etc.
+
+Built with `tsup` into `bin/dist/cli.js`. Add new commands by creating a file in `cli/commands/` and registering it in `cli/index.ts`.
 
 **File System Layer** (`server/utils/`):
 - `claudeDir.ts` - Resolves `~/.claude` path (respects `CLAUDE_DIR` env var)

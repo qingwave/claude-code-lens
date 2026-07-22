@@ -1,6 +1,6 @@
 
 <h1 align="center">Claude Code Lens (CCLens)<br/>
-  <sub>Visual dashboard for Claude Code agents, sessions & configs</sub></h1>
+  <sub>Visual dashboard & CLI for Claude Code agents, sessions & configs</sub></h1>
 
 <p align="center">
   <a href="#quickstart"><strong>Quickstart</strong></a> &middot;
@@ -38,7 +38,7 @@
 
 **If Claude Code is the _engine_, CCLens is the _dashboard_**
 
-Claude Code Lens is a Nuxt 3-based visual dashboard for managing Claude Code agents, commands, skills, workflows, and plugins. It provides a GUI layer on top of the `~/.claude` directory, allowing users to create, edit, and organize their Claude Code configuration without touching markdown files directly.
+Claude Code Lens is a Nuxt 3-based visual dashboard and CLI tool for managing Claude Code agents, commands, skills, workflows, and plugins. It provides a GUI layer and terminal-native CLI on top of the `~/.claude` directory, allowing users to create, edit, and organize their Claude Code configuration without touching markdown files directly.
 
 It looks like a studio — but under the hood it has relationship graphs, real-time metrics, visual workflow builders, and terminal emulation.
 
@@ -127,8 +127,8 @@ Full PTY terminal emulator with integrated context monitoring and WebSocket stre
 Live token counting, cost tracking, and file system change monitoring.
 </td>
 <td align="center">
-<h3>🌍 Explore & Templates</h3>
-Browse and import community agent templates and marketplace resources instantly.
+<h3>🔍 CLI Mode</h3>
+Search sessions, browse agents/skills/memory, export history and manage projects — all from the terminal without opening a browser.
 </td>
 </tr>
 </table>
@@ -169,6 +169,25 @@ bun run dev
 ```
 
 > **Requirements:** [Bun](https://bun.sh) and Node.js 22+
+
+<br/>
+
+## CLI Mode
+
+No server needed. Run commands directly from your terminal:
+
+```bash
+cclens -s "fix login bug"       # Search sessions by content, select to resume
+cclens sessions                 # Browse recent sessions, select to resume
+cclens export "auth bug" -o out.md  # Export a session to markdown
+cclens cleanup                  # Remove empty sessions
+cclens projects                 # List all projects
+cclens rename ~/work/old ~/work/new  # Rename a project in ~/.claude
+cclens agents                   # List agents
+cclens skills / commands / workflows / plugins / memory / mcp
+cclens stats                    # Overview: tokens, cost, activity
+cclens -h                       # Show all commands
+```
 
 <br/>
 
@@ -249,6 +268,7 @@ bun run typecheck    # Run TypeScript type checking
 - ✅ Integrated Terminal Emulator
 - ✅ Chat-based Agent Studio
 - ✅ Marketplace & Plugin System
+- ✅ CLI Mode (search, sessions, agents, memory, stats...)
 - ⚪ Desktop Application
 - ⚪ Artifacts & Deployments
 - ⚪ Multiple Session History
